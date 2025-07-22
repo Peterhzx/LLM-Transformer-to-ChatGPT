@@ -5,18 +5,19 @@ from tqdm import tqdm
 
 class Tokenizer:
     def __init__(self):
-        self.words_dic = {}
         self.tokens = {}
+        self.reversed_tokens = {}
         self.words_count = {}
-        self.words_split = {}
+        self.tokenized_words = {}
+        # self.code_points = code_points  # list of integers of valid char in unicode format
 
     @staticmethod
-    def word_level_tokenizer(text, regex):
+    def _word_level_tokenizer(text, regex):
         pattern = re.compile(regex, re.VERBOSE)
         tokens = pattern.findall(text)
         return tokens
 
-    def preprocess(self, df):
+    def _preprocess(self, df):
         # including all the English and French char in unicode:
         # [ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_abcdefghijklmnopqrstuvwxyz| §©«²³»ÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸʳˢᵈᵉ‐‑–—‘’“”†‡… ‰′″€−]
         code_points = [
@@ -52,13 +53,13 @@ class Tokenizer:
         # initialize word2token and token2word dict
         special_token_list = ["<PAD>", "<BOS>", "<EOS>", "<EOW>"]
         for i in range(len(special_token_list)):
-            self.words_dic[special_token_list[i]] = i
-            self.tokens[i] = special_token_list[i]
+            self.tokens[special_token_list[i]] = i
+            self.reversed_tokens[i] = special_token_list[i]
 
-        index = len(self.words_dic)
+        index = len(self.tokens)
         for char in all_chars:
-            self.words_dic[char] = index
-            self.tokens[index] = char
+            self.tokens[char] = index
+            self.reversed_tokens[index] = char
             index = index + 1
 
         # split data into list of words. do not include symbols.
@@ -68,19 +69,19 @@ class Tokenizer:
             """
 
         fr_tokenizer_regex = r"""
-              \d+(?:[\.,]\d+)*
+              \d+(?:[\.,]\d+)*  # Numbers: 1.23, 1,000,000
             | [a-zA-ZàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]['’]    # Elisions: l', d', j'
             | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)*  # Words w/ hyphens/apostrophes
             """
 
-        # avoid modify the origial dataset
+        # avoid modify the original dataset
         df_word_level_tokenized = pd.DataFrame()
         tqdm.pandas()
         col_names = df.columns.tolist()
-        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self.word_level_tokenizer,
+        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self._word_level_tokenizer,
                                                                                 regex=en_tokenizer_regex,
                                                                                 desc=f"Splitting col {col_names[0]} into words")
-        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self.word_level_tokenizer,
+        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self._word_level_tokenizer,
                                                                                 regex=fr_tokenizer_regex,
                                                                                 desc=f"Splitting col {col_names[1]} into words")
 
@@ -90,14 +91,14 @@ class Tokenizer:
                 for word in sentence:
                     if word not in self.words_count:
                         self.words_count[word] = 1
-                        char_list = list(word) + ["<EOW>"]
-                        self.words_split[word] = char_list
+                        char_list = list(word).append("<EOW>")
+                        self.tokenized_words[word] = char_list
                     else:
                         self.words_count[word] += 1
 
-    def count_byte_pair(self):
+    def _count_byte_pair(self):
         byte_pair_count = {}
-        for k, v in self.words_split.items():
+        for k, v in self.tokenized_words.items():
             for i in range(len(v) - 1):
                 byte_pair = v[i] + v[i + 1]
                 if byte_pair not in byte_pair_count:
@@ -105,3 +106,41 @@ class Tokenizer:
                 else:
                     byte_pair_count[byte_pair] += self.words_count[k]
         return byte_pair_count
+
+    def _merge_byte_pair(self, byte_pair_count):
+        new_token = max(byte_pair_count, key=byte_pair_count.get)
+        index = len(self.tokens)
+        self.tokens[new_token] = index
+        self.reversed_tokens[index] = new_token
+        new_tokenized_words = {}
+
+        for k, v in self.tokenized_words.items():
+            new_tokenized_words[k] = self._tokenize_word(v, True)
+        self.tokenized_words = new_tokenized_words
+
+    def _tokenize_word(self, word, training):
+        tokenized_word = []
+        matched_byte_pair = ""
+        if training:
+            for char in word:
+                if (matched_byte_pair + char) in self.tokens:
+                    matched_byte_pair += char
+                else:
+                    tokenized_word.append(matched_byte_pair)
+                    matched_byte_pair = char
+            tokenized_word.append(matched_byte_pair)
+            return tokenized_word
+        else:
+            for char in word:
+                if (matched_byte_pair + char) in self.tokens:
+                    matched_byte_pair += char
+                else:
+                    tokenized_word.append(self.reversed_tokens.get(matched_byte_pair, 0))
+                    matched_byte_pair = char
+            if (matched_byte_pair + "<EOW>") in self.tokens:
+                matched_byte_pair += "<EOW>"
+            else:
+                tokenized_word.append(self.reversed_tokens.get(matched_byte_pair, 0))
+                matched_byte_pair = "<EOW>"
+            tokenized_word.append(self.reversed_tokens.get(matched_byte_pair, 0))
+            return tokenized_word
