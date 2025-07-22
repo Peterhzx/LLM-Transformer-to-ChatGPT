@@ -17,6 +17,46 @@ class Tokenizer:
         tokens = pattern.findall(text)
         return tokens
 
+    def _df_splitting(self, df, training):
+        if training:
+            en_tokenizer_regex = r"""
+                          \d+(?:[\.,]\d+)*  # Numbers: 1.23, 1,000,000
+                        | \w+(?:[-']\w+)*   # Words: don't, state-of-the-art
+                        """
+
+            fr_tokenizer_regex = r"""
+                          \d+(?:[\.,]\d+)*  # Numbers: 1.23, 1,000,000
+                        | [a-zA-ZàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]['’]    # Elisions: l', d', j'
+                        | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)*  # Words w/ hyphens/apostrophes
+                        """
+        else:
+            en_tokenizer_regex = r"""
+                                      \d+(?:[\.,]\d+)*                  # Numbers: 1.23, 1,000,000
+                                    | \w+(?:[-']\w+)*              # Words: don't, state-of-the-art
+                                    | \S\S+                        # Multi-char symbols: !!!, ...
+                                    | \S                           # Single punctuation: ., ?, (
+                                    """
+
+            fr_tokenizer_regex = r"""
+                                      \d+(?:[\.,]\d+)*                  # Numbers: 1.23, 1,000,000
+                                    | [a-zA-ZàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]['’]    # Elisions: l', d', j'
+                                    | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)*    # Words w/ hyphens/apostrophes
+                                    | \S\S+                      |  # Multi-char symbols: !!!, ...
+                                    | \S                           # Single punctuation: ., ?, (
+                                    """
+
+        # avoid modifying the original dataset
+        df_word_level_tokenized = pd.DataFrame()
+        tqdm.pandas()
+        col_names = df.columns.tolist()
+        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self._word_level_tokenizer,
+                                                                                regex=en_tokenizer_regex,
+                                                                                desc=f"Splitting col {col_names[0]} into words")
+        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self._word_level_tokenizer,
+                                                                                regex=fr_tokenizer_regex,
+                                                                                desc=f"Splitting col {col_names[1]} into words")
+        return df_word_level_tokenized
+
     def _preprocess(self, df):
         # including all the English and French char in unicode:
         # [ !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_abcdefghijklmnopqrstuvwxyz| §©«²³»ÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸʳˢᵈᵉ‐‑–—‘’“”†‡… ‰′″€−]
@@ -63,29 +103,10 @@ class Tokenizer:
             index = index + 1
 
         # split data into list of words. do not include symbols.
-        en_tokenizer_regex = r"""
-              \d+(?:[\.,]\d+)*  # Numbers: 1.23, 1,000,000
-            | \w+(?:[-']\w+)*   # Words: don't, state-of-the-art
-            """
-
-        fr_tokenizer_regex = r"""
-              \d+(?:[\.,]\d+)*  # Numbers: 1.23, 1,000,000
-            | [a-zA-ZàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]['’]    # Elisions: l', d', j'
-            | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)*  # Words w/ hyphens/apostrophes
-            """
-
-        # avoid modify the original dataset
-        df_word_level_tokenized = pd.DataFrame()
-        tqdm.pandas()
-        col_names = df.columns.tolist()
-        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self._word_level_tokenizer,
-                                                                                regex=en_tokenizer_regex,
-                                                                                desc=f"Splitting col {col_names[0]} into words")
-        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self._word_level_tokenizer,
-                                                                                regex=fr_tokenizer_regex,
-                                                                                desc=f"Splitting col {col_names[1]} into words")
+        df_word_level_tokenized = self._df_splitting(df, True)
 
         # initialize words_count and words_split
+        col_names = df_word_level_tokenized.columns.tolist()
         for col_name in col_names:
             for sentence in tqdm(df_word_level_tokenized[col_name], desc=f"Counting words in col {col_name}", total=len(df_word_level_tokenized)):
                 for word in sentence:
@@ -144,3 +165,28 @@ class Tokenizer:
                 matched_byte_pair = "<EOW>"
             tokenized_word.append(self.reversed_tokens.get(matched_byte_pair, 0))
             return tokenized_word
+
+    def _tokenize_df(self, df):
+        tokenized_df = self._df_splitting(df, False)
+        col_names = tokenized_df.columns.tolist()
+        for col_name in col_names:
+            tokenized_col = []
+            for sentence in tokenized_df[col_name]:
+                tokenized_sent = []
+                for word in sentence:
+                    tokenized_word = self._tokenize_word(word, False)
+                    tokenized_sent += tokenized_word
+                tokenized_col.append(tokenized_sent)
+            tokenized_df[col_name] = tokenized_col
+        return tokenized_df
+
+    def train(self, df, vocab_size):
+        self._preprocess(df)
+        for _ in range(vocab_size - len(self.tokens)):
+            byte_pair_count = self._count_byte_pair()
+            self._merge_byte_pair(byte_pair_count)
+
+    def tokenize(self, df):
+        print("using # tokenizer")
+        tokenized_df = self._tokenize_df(df)
+        return tokenized_df
