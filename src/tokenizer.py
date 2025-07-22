@@ -17,6 +17,8 @@ class Tokenizer:
         return tokens
 
     def preprocess(self, df):
+        # including all the English and French char in unicode:
+        # !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_abcdefghijklmnopqrstuvwxyz| §©«²³»ÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸʳˢᵈᵉ‐‑–—‘’“”†‡… ‰′″€−
         code_points = [
             0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27,
             0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
@@ -44,8 +46,6 @@ class Tokenizer:
             0x202F,
             0x2212
         ]
-        # including all the English and French char in unicode:
-        # !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_abcdefghijklmnopqrstuvwxyz| §©«²³»ÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸʳˢᵈᵉ‐‑–—‘’“”†‡… ‰′″€−
         code_points = sorted(set(code_points))
         all_chars = ''.join(chr(cp) for cp in code_points)
 
@@ -73,22 +73,57 @@ class Tokenizer:
             | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)*  # Words w/ hyphens/apostrophes
             """
 
+        #avoid modify the origial dataset
         df_word_level_tokenized = pd.DataFrame()
         tqdm.pandas()
         col_names = df.columns.tolist()
-        df_word_level_tokenized["en_tokens"] = df[col_names[0]].progress_apply(self.word_level_tokenizer,
+        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self.word_level_tokenizer,
                                                                                regex=en_tokenizer_regex)
-        df_word_level_tokenized["fr_tokens"] = df[col_names[1]].progress_apply(self.word_level_tokenizer,
+        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self.word_level_tokenizer,
                                                                                regex=fr_tokenizer_regex)
 
-        #initialize words_count and words_split
-        for sentence in df_word_level_tokenized["en_tokens"]:
-            for word in sentence:
-                if word not in self.words_count:
-                    self.words_count[word] = 1
+        # initialize words_count and words_split
+        for col_name in col_names:
+            for sentence in df_word_level_tokenized[col_name]:
+                for word in sentence:
+                    if word not in self.words_count:
+                        self.words_count[word] = 1
+                        char_list = []
+                        for char in word:
+                            char_list.append(char)
+                        self.words_split[word] = char_list
+                    else:
+                        self.words_count[word] += 1
+
+    def count_byte_pair(self):
+
+
+        col_names = df.columns.tolist()
+        for col_name in col_names:
+            for sentence in tqdm(df[col_name], desc=f"Counting byte-pairs in column {col_name}", total=len(df)):
+                for word in sentence:
                     char_list = []
+                    matched_byte_pair = ""
                     for char in word:
-                        char_list.append(char)
-                    self.words_split[word] = char_list
-                else:
-                    self.words_count[word] += 1
+                        if (matched_byte_pair + char) in BPE_dic:
+                            matched_byte_pair += char
+                        else:
+                            char_list.append(matched_byte_pair)
+                            matched_byte_pair = char
+                    if (matched_byte_pair + "<EOW>") in BPE_dic:
+                        matched_byte_pair += "<EOW>"
+                    else:
+                        char_list.append(matched_byte_pair)
+                        matched_byte_pair = "<EOW>"
+                    char_list.append(matched_byte_pair)
+                    # for char in word:
+                    #    char_list.append(char)
+                    # char_list.append("<EOW>")
+                    for i in range(len(char_list) - 1):
+                        byte_pair = char_list[i] + char_list[i + 1]
+                        if byte_pair not in BPE_dic:
+                            if byte_pair not in BPE_count:
+                                BPE_count[byte_pair] = 1
+                            else:
+                                BPE_count[byte_pair] += 1
+        return BPE_count
