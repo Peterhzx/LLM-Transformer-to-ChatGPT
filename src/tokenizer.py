@@ -52,14 +52,11 @@ class Tokenizer:
 
         # avoid modifying the original dataset
         df_word_level_tokenized = pd.DataFrame()
-        tqdm.pandas()
         col_names = df.columns.tolist()
-        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self._word_level_tokenizer,
-                                                                                regex=en_tokenizer_regex,
-                                                                                desc=f"Splitting col {col_names[0]} into words")
-        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self._word_level_tokenizer,
-                                                                                regex=fr_tokenizer_regex,
-                                                                                desc=f"Splitting col {col_names[1]} into words")
+        tqdm.pandas(desc=f"Splitting col {col_names[0]} into words")
+        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self._word_level_tokenizer, regex=en_tokenizer_regex)
+        tqdm.pandas(desc=f"Splitting col {col_names[1]} into words")
+        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self._word_level_tokenizer, regex=fr_tokenizer_regex)
         return df_word_level_tokenized
 
     def _preprocess(self, df):
@@ -117,7 +114,8 @@ class Tokenizer:
                 for word in sentence:
                     if word not in self.words_count:
                         self.words_count[word] = 1
-                        char_list = list(word).append("<EOW>")
+                        char_list = list(word)
+                        char_list.append("<EOW>")
                         self.tokenized_words[word] = char_list
                     else:
                         self.words_count[word] += 1
@@ -143,6 +141,11 @@ class Tokenizer:
         for k, v in self.tokenized_words.items():
             new_tokenized_words[k] = self._tokenize_word(v, True)
         self.tokenized_words = new_tokenized_words
+
+    def _train_loop(self, vocab_size):
+        for _ in tqdm(range(vocab_size - len(self.tokens)), desc="Training", total=vocab_size - len(self.tokens)):
+            byte_pair_count = self._count_byte_pair()
+            self._merge_byte_pair(byte_pair_count)
 
     def _tokenize_word(self, word, training):
         tokenized_word = []
@@ -176,7 +179,7 @@ class Tokenizer:
         col_names = tokenized_df.columns.tolist()
         for col_name in col_names:
             tokenized_col = []
-            for sentence in tokenized_df[col_name]:
+            for sentence in tqdm(tokenized_df[col_name], desc=f"tokenizing col {col_name}", total=len(tokenized_df)):
                 tokenized_sent = []
                 for word in sentence:
                     tokenized_word = self._tokenize_word(word, False)
@@ -187,9 +190,7 @@ class Tokenizer:
 
     def train(self, df, vocab_size):
         self._preprocess(df)
-        for _ in range(vocab_size - len(self.tokens)):
-            byte_pair_count = self._count_byte_pair()
-            self._merge_byte_pair(byte_pair_count)
+        self._train_loop(vocab_size)
 
     def tokenize(self, df):
         print(f"using {self._vocab_fingerprint(self.tokens)} vocab")
