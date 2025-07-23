@@ -126,19 +126,35 @@ class Tokenizer:
         for k, v in self.tokenized_words.items():
             for i in range(len(v) - 1):
                 byte_pair = v[i] + v[i + 1]
-                if byte_pair not in self.byte_pair_count:
-                    self.byte_pair_count[byte_pair] = self.words_count[k]
-                    self.byte_pair_location[byte_pair] = {k: [i]}
-                else:
-                    self.byte_pair_count[byte_pair] += self.words_count[k]
-                    locations = self.byte_pair_location[byte_pair]
-                    if k not in locations:
-                        locations[k] = [i]
-                    else:
-                        locations[k].append(i)
-                    self.byte_pair_location[byte_pair] = locations
+                self._update_byte_pair(byte_pair, k, i, True)
 
-    def update_byte_pair(self, byte_pair, index, addition):
+    def _update_byte_pair(self, byte_pair, word, index, addition):
+        if addition:
+            if byte_pair not in self.byte_pair_count:
+                self.byte_pair_count[byte_pair] = self.words_count[word]
+                self.byte_pair_location[byte_pair] = {word: [index]}
+            else:
+                self.byte_pair_count[byte_pair] += self.words_count[word]
+                locations = self.byte_pair_location[byte_pair]
+                if word not in locations:
+                    locations[word] = [index]
+                else:
+                    locations[word].append(index)
+                self.byte_pair_location[byte_pair] = locations
+        else:
+            self.byte_pair_count[byte_pair] -= self.words_count[word]
+            if self.byte_pair_count[byte_pair] == 0:
+                del self.byte_pair_count[byte_pair]
+            locations = self.byte_pair_location[byte_pair]
+            locations[word].remove(index)
+            if len(locations[word]) == 0:
+                del locations[word]
+            else:
+                self.byte_pair_location[byte_pair] = locations
+            if len(locations) == 0:
+                del self.byte_pair_location[byte_pair]
+            else:
+                self.byte_pair_location[byte_pair] = locations
 
     def _merge_byte_pair(self):
         new_token = max(self.byte_pair_count, key=self.byte_pair_count.get)
@@ -152,54 +168,18 @@ class Tokenizer:
             for index in v:
                 if index != 0:
                     new_byte_pair = word_list[index-1] + new_token
-                    if new_byte_pair not in self.byte_pair_count:
-                        self.byte_pair_count[new_byte_pair] = self.words_count[k]
-                        self.byte_pair_location[new_byte_pair] = {k: [index-1]}
-                    else:
-                        self.byte_pair_count[new_byte_pair] += self.words_count[k]
-                        locations = self.byte_pair_location[new_byte_pair]
-                        if k not in locations:
-                            locations[k] = [index-1]
-                        else:
-                            locations[k].append(index-1)
-                        self.byte_pair_location[new_byte_pair] = locations
+                    self._update_byte_pair(new_byte_pair, k, index-1, True)
 
                     del_byte_pair = word_list[index-1] + word_list[index]
-                    self.byte_pair_count[del_byte_pair] -= self.words_count[k]
-                    if self.byte_pair_count[del_byte_pair] == 0:
-                        del self.byte_pair_count[del_byte_pair]
-                    locations = self.byte_pair_location[del_byte_pair]
-                    locations[k].remove(index-1)
-                    if len(locations[k]) == 0:
-                        del locations[k]
-                    else:
-                        self.byte_pair_location[del_byte_pair] = locations
+                    self._update_byte_pair(del_byte_pair, k, index-1, False)
 
                 if index != len(word_list)-1:
                     new_byte_pair = new_token + word_list[index + 2]
-                    if new_byte_pair not in self.byte_pair_count:
-                        self.byte_pair_count[new_byte_pair] = self.words_count[k]
-                        self.byte_pair_location[new_byte_pair] = {k: [index]}
-                    else:
-                        self.byte_pair_count[new_byte_pair] += self.words_count[k]
-                        locations = self.byte_pair_location[new_byte_pair]
-                        if k not in locations:
-                            locations[k] = [index]
-                        else:
-                            locations[k].append(index)
+                    self._update_byte_pair(new_byte_pair, k, index, True)
 
                     del_byte_pair = word_list[index + 1] + word_list[index + 2]
-                    self.byte_pair_count[del_byte_pair] -= self.words_count[k]
-                    if self.byte_pair_count[del_byte_pair] == 0:
-                        del self.byte_pair_count[del_byte_pair]
-                    locations = self.byte_pair_location[del_byte_pair]
-                    locations[k].remove(index + 1)
-                    if len(locations[k]) == 0:
-                        del locations[k]
-                    else:
-                        self.byte_pair_location[del_byte_pair] = locations
+                    self._update_byte_pair(del_byte_pair, k, index + 1, False)
             self.tokenized_words[k] = self._tokenize_word(k, True)
-
 
     def _train_loop(self, vocab_size):
         for _ in tqdm(range(vocab_size - len(self.tokens)), desc="Training", total=vocab_size - len(self.tokens)):
