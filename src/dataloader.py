@@ -4,19 +4,19 @@ from tqdm import tqdm
 
 class Dataloader:
     def __init__(self, df_path, allowed_chars=""):
-        if df_path.endwith("v"):
+        if df_path.endswith(".csv"):
             self.df = pd.read_csv(df_path)
-        elif df_path.endwith("x"):
+        elif df_path.endswith(".xlsx"):
             self.df = pd.read_excel(df_path)
-        elif df_path.endwith("n"):
+        elif df_path.endswith(".json"):
             self.df = pd.read_json(df_path)
         else:
             raise ValueError("file formate should be: .csv .xlsx .json")
 
-        if type(allowed_chars) == list:
+        if isinstance(allowed_chars, list):
             code_points = sorted(set(allowed_chars))
             self.allowed_chars = ''.join(chr(cp) for cp in code_points)
-        elif type(allowed_chars) == str:
+        elif isinstance(allowed_chars, str):
             self.allowed_chars = allowed_chars
         else:
             raise ValueError("allowed_chars accept only list and str")
