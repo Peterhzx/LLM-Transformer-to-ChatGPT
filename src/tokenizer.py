@@ -19,8 +19,7 @@ class Tokenizer:
         # self.code_points = code_points  # list of integers of valid char in unicode format
 
     @staticmethod
-    def _word_level_tokenizer(text, regex):
-        pattern = re.compile(regex, re.VERBOSE)
+    def _word_level_tokenizer(text, pattern):
         tokens = pattern.findall(text)
         return tokens
 
@@ -55,10 +54,12 @@ class Tokenizer:
         # avoid modifying the original dataset
         df_word_level_tokenized = pd.DataFrame()
         col_names = df.columns.tolist()
+        en_pattern = re.compile(en_tokenizer_regex, re.VERBOSE)
+        fr_pattern = re.compile(fr_tokenizer_regex, re.VERBOSE)
         tqdm.pandas(desc=f"Splitting col {col_names[0]} into words")
-        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self._word_level_tokenizer, regex=en_tokenizer_regex)
+        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self._word_level_tokenizer, pattern=en_pattern)
         tqdm.pandas(desc=f"Splitting col {col_names[1]} into words")
-        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self._word_level_tokenizer, regex=fr_tokenizer_regex)
+        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self._word_level_tokenizer, pattern=fr_pattern)
         return df_word_level_tokenized
 
     def _preprocess(self, df):
@@ -193,14 +194,14 @@ class Tokenizer:
                 if (matched_byte_pair + char) in self.tokens:
                     matched_byte_pair += char
                 else:
-                    tokenized_word.append(self.reversed_tokens.get(matched_byte_pair, 0))
+                    tokenized_word.append(self.tokens.get(matched_byte_pair, 0))
                     matched_byte_pair = char
             if (matched_byte_pair + "<EOW>") in self.tokens:
                 matched_byte_pair += "<EOW>"
             else:
-                tokenized_word.append(self.reversed_tokens.get(matched_byte_pair, 0))
+                tokenized_word.append(self.tokens.get(matched_byte_pair, 0))
                 matched_byte_pair = "<EOW>"
-            tokenized_word.append(self.reversed_tokens.get(matched_byte_pair, 0))
+            tokenized_word.append(self.tokens.get(matched_byte_pair, 0))
             return tokenized_word
 
     def _tokenize_df(self, df):
@@ -255,8 +256,8 @@ class Tokenizer:
             with open("./reversed_tokens.json", "w") as f:
                 json.dump(self.reversed_tokens, f, indent=4)
             with open("./fingerprint.txt", "w") as f:
-                f.write(f"tokens: {self._vocab_fingerprint(self.tokens)}/n"
-                        f"reversed_tokens: {self._vocab_fingerprint(self.reversed_tokens)}")
+                f.write(f"tokens: {self._vocab_fingerprint(self.tokens)}\n"
+                        f"reversed tokens: {self._vocab_fingerprint(self.reversed_tokens)}")
             print(f"{self._vocab_fingerprint(self.tokens)} vocab saved to {os.getcwd()}")
         else:
             with open(f"{path}/tokens.json", "w") as f:
@@ -264,8 +265,8 @@ class Tokenizer:
             with open(f"{path}/reversed_tokens.json", "w") as f:
                 json.dump(self.reversed_tokens, f, indent=4)
             with open(f"{path}/fingerprint.txt", "w") as f:
-                f.write(f"tokens: {self._vocab_fingerprint(self.tokens)}/n"
-                        f"reversed_tokens: {self._vocab_fingerprint(self.reversed_tokens)}")
+                f.write(f"tokens: {self._vocab_fingerprint(self.tokens)}\n"
+                        f"reversed tokens: {self._vocab_fingerprint(self.reversed_tokens)}")
             print(f"{self._vocab_fingerprint(self.tokens)} vocab saved to {path}")
 
     def load(self, path=None):
