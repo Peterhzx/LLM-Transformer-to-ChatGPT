@@ -16,7 +16,8 @@ class Tokenizer:
         self.tokenized_words = {}  # {"word": ["w", "or", "d"]}
         self.byte_pair_count = {}  # {"or": int}
         self.byte_pair_location = {}  # {"an": {"anchor": [0], "banana": [1, 3]}}
-        # self.code_points = code_points  # list of integers of valid char in unicode format
+        self.token_ranks = {}  # {"word": int(priority)}
+        #self.all_chars = all_chars  # list of integers of valid char in unicode format
 
     @staticmethod
     def _word_level_tokenizer(text, pattern):
@@ -153,8 +154,7 @@ class Tokenizer:
             for i in range(len(word_list) - 1):
                 byte_pair = word_list[i] + word_list[i + 1]
                 if k in self.byte_pair_location[byte_pair]:
-                    self.byte_pair_count[byte_pair] -= self.words_count[k] * len(
-                        self.byte_pair_location[byte_pair][k])
+                    self.byte_pair_count[byte_pair] -= self.words_count[k] * len(self.byte_pair_location[byte_pair][k])
                     if self.byte_pair_count[byte_pair] == 0:
                         del self.byte_pair_count[byte_pair]
                     del self.byte_pair_location[byte_pair][k]
