@@ -9,3 +9,23 @@
 }
 """
 
+import json
+
+
+def generate_config():
+    # Your original regex with all special characters preserved
+    tgt_tokenizer_regex = r"\d+(?:[\.,]\d+)* | [a-zA-ZàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]['’] | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)* | \S\S+ | \S"
+
+    config = {
+        "tgt_tokenizer_regex": tgt_tokenizer_regex
+    }
+
+    # Write with proper UTF-8 encoding
+    with open('config.json', 'w', encoding='utf-8') as f:
+        json.dump(config, f, indent=4, ensure_ascii=False)
+
+    print("config.json generated successfully with UTF-8 encoding")
+
+
+if __name__ == "__main__":
+    generate_config()
