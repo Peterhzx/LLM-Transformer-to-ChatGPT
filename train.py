@@ -20,7 +20,7 @@ def train_tokenizer(params):
     dataloader = Dataloader(params["data_path"], params["allowed_chars"])
     tokenizer = Tokenizer()
     data_df = dataloader.get_df()
-    tokenizer.train(data_df, params["vocab_size"])
+    tokenizer.train(data_df, params["vocab_size"], params["src_tokenizer_regex"], params["tgt_tokenizer_regex"], params["allowed_chars"], params["special_tokens"])
     tokenizer.save()
 
 
@@ -28,6 +28,5 @@ if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Usage: python train.py <config_path>")
         sys.exit(1)
-
     hyperparams = load_hyperparam(sys.argv[1])
     train_tokenizer(hyperparams)
