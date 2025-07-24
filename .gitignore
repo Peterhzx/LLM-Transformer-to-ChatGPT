@@ -19,6 +19,11 @@ data/
 *.pkl
 *.h5
 
+# saved tokenizer
+fingerprint.txt
+tokens.json
+reversed_tokens.json
+
 # 模型文件
 models/
 *.pt
