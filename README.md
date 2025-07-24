@@ -1,0 +1,3 @@
+- all_chars formate: string of all allowed character with no separation or list of unicode integers
+- data formate: .csv .xlsx .json **mind that:** there should be only two columns. First is the source language and second be the target
+- regex: example: en_tokenizer_regex = r"""\d+(?:[\.,]\d+)* | \w+(?:[-']\w+)* | \S\S+ | \S""" The last two expression will be excluded in training tokenizer
