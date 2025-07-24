@@ -43,3 +43,6 @@ class Dataloader:
 
     def save(self, path):
         self.df.to_csv(path, index=False)
+
+    def get(self):
+        return self.df
