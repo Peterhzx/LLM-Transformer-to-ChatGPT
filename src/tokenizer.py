@@ -2,6 +2,7 @@ import base64
 import hashlib
 import json
 import os
+import time
 
 import pandas as pd
 import re
@@ -17,7 +18,6 @@ class Tokenizer:
         self.byte_pair_count = {}  # {"or": int}
         self.byte_pair_location = {}  # {"an": {"anchor": [0], "banana": [1, 3]}}
         self.token_ranks = {}  # {"word": int(priority)}
-        #self.all_chars = all_chars  # list of integers of valid char in unicode format
 
     @staticmethod
     def _word_level_tokenizer(text, pattern):
@@ -223,6 +223,7 @@ class Tokenizer:
         print("Preprocessing...")
         self._preprocess(df)
         print("Training...")
+        time.sleep(1)
         self._train_loop(vocab_size)
 
     def tokenize(self, df):

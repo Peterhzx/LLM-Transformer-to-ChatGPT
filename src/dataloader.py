@@ -5,13 +5,13 @@ from tqdm import tqdm
 
 
 class Dataloader:
-    def __init__(self, df_path, allowed_chars=""):
+    def __init__(self, df_path, allowed_chars="", nrows=1000000):
         if df_path.endswith(".csv"):
-            self.df = pd.read_csv(df_path)
+            self.df = pd.read_csv(df_path, nrows=nrows)
         elif df_path.endswith(".xlsx"):
-            self.df = pd.read_excel(df_path)
+            self.df = pd.read_excel(df_path, nrows=nrows)
         elif df_path.endswith(".json"):
-            self.df = pd.read_json(df_path)
+            self.df = pd.read_json(df_path, nrows=nrows)
         else:
             raise ValueError("file formate should be: .csv .xlsx .json")
 

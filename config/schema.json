@@ -16,11 +16,11 @@
       "type": "string",
       "description": "Word level parser used for tokenizer training and tokenizing"
     },
-    "learning_rate": {
+    "vocab_size": {
       "type": "number",
-      "minimum": 1e-7,
-      "maximum": 0.1,
-      "description": "Step size for optimizer"
+      "minimum": 0,
+      "maximum": 50000,
+      "description": "Target vocab size for tokenizer training"
     },
     "batch_size": {
       "type": "integer",
