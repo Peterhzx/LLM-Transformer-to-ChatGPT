@@ -21,7 +21,10 @@ class Dataloader:
         else:
             raise ValueError("allowed_chars accept only list and str")
 
-    def clean_data(self):
+        if len(allowed_chars) != 0:
+            self._clean_data()
+
+    def _clean_data(self):
         self.df = self.df.drop_duplicates().dropna().astype(str).reset_index(drop=True)
         invalid_sentence_index = set()
         column_list = self.df.columns.tolist()
@@ -44,5 +47,5 @@ class Dataloader:
     def save(self, path):
         self.df.to_csv(path, index=False)
 
-    def get(self):
+    def get_df(self):
         return self.df
