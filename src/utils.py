@@ -5,7 +5,7 @@ import jsonschema
 from jsonschema import validate
 
 from src.dataloader import Dataloader
-from tokenizer.BPE import BPE
+from tokenizer.bpe import BPE
 
 
 def load_config(json_path=r".\config\config.json"):
