@@ -15,20 +15,60 @@
     "nrows": 1000000
   },
   "Trainer": {
-    "$comment": "config of Trainer. model_type, num_epoch are required",
-    "model_type": "Transformer",
+    "$comment": "config of Trainer. model, num_epoch are required.",
     "num_epoch": 10,
-    "optimizer": "AdamW",
-    "lrscheduler": "LambdaLR",
-    "lambdalr": "",
-    "criterion": "CrossEntropyLoss",
-    "model_settings": {
-      "embed_dim": 512,
-      "num_layers": 6,
-      "num_heads": 8,
-      "feedforward_dim": 2048,
-      "num_tokens": 30000,
-      "pad_token_id": 0
+    "dataloader": {
+      "type": "get_transformer_dataloader",
+      "params": {
+        "max_seq_len": 50,
+        "batch_size": 64,
+        "train_val_test_split": [0.7, 0.15, 0.15]
+      }
+    },
+    "save_period": {
+      "value": 5000,
+      "description": "save checkpoint every 5000 batch"
+    },
+    "resume": {
+      "value": false,
+      "ckpt_dir": "",
+      "description": "when value=true, ckpt_dir is required. an example of ckpt_dir: ./checkpoints/transformer/<folder_name>/"
+    },
+    "model": {
+      "type": "Transformer",
+      "params": {
+        "embed_dim": 512,
+        "num_layers": 6,
+        "num_heads": 8,
+        "feedforward_dim": 2048,
+        "num_tokens": 30000,
+        "pad_token_id": 0
+      }
+    },
+    "optimizer": {
+      "type": "AdamW",
+      "params": {
+        "betas": [0.9, 0.98],
+        "eps": 1e-09,
+        "weight_decay": 1e-2
+      }
+    },
+    "lr_scheduler": {
+      "type": "LambdaLR",
+      "lambda": {
+        "type": "Transformer_lambda",
+        "params": {
+          "embed_dim": 512,
+          "warmup_steps": 4000
+        }
+      }
+    },
+    "criterion": {
+      "type": "CrossEntropyLoss",
+      "params": {
+        "ignore_index": 0,
+        "label_smoothing": 0.1
+      }
     }
   }
 }

@@ -7,9 +7,10 @@ import torch.nn.functional as F
 
 
 class Transformer(nn.Module):
-    def __init__(self, num_layers, embed_dim, num_heads, feedforward_dim, num_tokens, pad_token_id,
-                 max_possible_seq_len=2048):
+    def __init__(self, num_layers, embed_dim, num_heads, num_tokens, pad_token_id, feedforward_dim=2048, max_possible_seq_len=2048, **kwargs):
         super(Transformer, self).__init__()
+        if kwargs:
+            print(f"Ignored unused arguments: {', '.join(kwargs.keys())}")
         self.padding_idx = pad_token_id
         self.register_buffer('positional_encoding', self.build_positional_encoding(max_possible_seq_len, embed_dim))
         self.embeddings = nn.Embedding(num_tokens, embed_dim, padding_idx=pad_token_id)

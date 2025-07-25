@@ -14,8 +14,7 @@ class TransformerDataset(Dataset):
     def __len__(self):
         return len(self.df)
 
-    def __getitem__(self,
-                    idx):  # improvement: Instead of fixed-length sequences, consider dynamic batching with a custom collate_fn
+    def __getitem__(self, idx):  # improvement: Instead of fixed-length sequences, consider dynamic batching with a custom collate_fn
         row = self.df.iloc[idx]
         col_names = self.df.columns.tolist()
         src_tokenized = row[col_names[0]]

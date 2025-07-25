@@ -5,6 +5,7 @@ import jsonschema
 from jsonschema import validate
 
 from src.dataloader import Dataloader
+from src.trainer import Trainer
 from tokenizer.bpe import BPE
 
 
@@ -43,7 +44,10 @@ def load_tokenizer(tokenizer, path=None):
 
 
 def train_model(dataloader, params):
+    loader = getattr(dataloader, params["dataloader"]["type"])
+    train_loader, val_loader, _ = loader(**params["dataloader"]["params"])
+    trainer = Trainer(params)
+    trainer.train(train_loader, val_loader)
+    trainer.save()
 
-
-
-def eval_model(model, dataloader, params):
+# def eval_model(model, dataloader, params):

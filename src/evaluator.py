@@ -1,7 +1,3 @@
-with open('words_dic_byte_pair.json', 'r') as f:
-    words_dic_byte_pair = json.load(f)
-with open('tokens_byte_pair.json', 'r') as f:
-    tokens_byte_pair = json.load(f)
 def prep_for_eval(input):
     return [[tokens_byte_pair.get(str(item), item) for item in sentence if item not in {0, 1, 2}] for sentence in input]
 
