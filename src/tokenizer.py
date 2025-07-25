@@ -9,6 +9,8 @@ import re
 from tqdm import tqdm
 
 
+# TODO: add tokenize with token_ranks mode
+
 class Tokenizer:
     def __init__(self):
         self.tokens = {}  # {"word": int}
@@ -17,7 +19,7 @@ class Tokenizer:
         self.tokenized_words = {}  # {"word": ["w", "or", "d"]}
         self.byte_pair_count = {}  # {"or": int}
         self.byte_pair_location = {}  # {"an": {"anchor": [0], "banana": [1, 3]}}
-        self.token_ranks = {}  # {"word": int(priority)}
+        # self.token_ranks = {}  # {"word": int(priority)}
 
     @staticmethod
     def _word_level_tokenizer(text, pattern):
@@ -52,6 +54,10 @@ class Tokenizer:
         for i in range(len(special_token_list)):
             self.tokens[special_token_list[i]] = i
             self.reversed_tokens[i] = special_token_list[i]
+
+        index = len(self.tokens)
+        self.tokens["<EOW>"] = index
+        self.reversed_tokens[index] = "<EOW>"
 
         index = len(self.tokens)
         for char in all_chars:

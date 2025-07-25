@@ -25,6 +25,8 @@ tokens.json
 reversed_tokens.json
 
 # 模型文件
-models/
+trained_models/
 *.pt
 *.bin
+checkpoints/
+*.ckpt
