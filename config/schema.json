@@ -25,12 +25,28 @@
         },
         "all_chars": {
           "default": "",
-          "type": ["string", "array"],
+          "oneOf":[
+            {
+              "type": "string",
+              "description": "String of characters to convert to codepoints"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "description": "Array of Unicode codepoints"
+            }
+          ],
           "description": "Default tokens to include"
         },
         "special_tokens":{
           "default": [],
           "type": "array",
+          "items": {
+            "type": "string"
+          },
           "description": "Default tokens to include"
         },
         "sample_size": {
@@ -48,6 +64,7 @@
       "properties": {
         "data_path": {
           "type": "string",
+          "pattern": "^(?:[a-zA-Z]:)?(?:[\\/]?(?:.{1,2}|[^\\/:*?\"<>|\n]+)(?:[\\/](?:.{1,2}|[^\\/:*?\"<>|\n]+))*)?[^\\/:*?\"<>|\n]+.(?:csv|xlsx|json)$",
           "description": "Word level parser used for tokenizer training and tokenizing"
         },
         "allowed_chars": {

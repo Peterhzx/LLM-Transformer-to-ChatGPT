@@ -27,7 +27,7 @@ def load_data(params):
     return dataloader
 
 
-def train_tokenizer(params, dataloader):
+def train_tokenizer(dataloader, params):
     tokenizer = BPE()
     data_df = dataloader.get_df(params["sample_size"])
     tokenizer.train(data_df, params)
@@ -36,3 +36,14 @@ def train_tokenizer(params, dataloader):
 
 def save_tokenizer(tokenizer, path=None):
     tokenizer.save(path)
+
+
+def load_tokenizer(tokenizer, path=None):
+    tokenizer.load(path)
+
+
+def train_model(dataloader, params):
+
+
+
+def eval_model(model, dataloader, params):

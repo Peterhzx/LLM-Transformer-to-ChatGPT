@@ -1,10 +1,15 @@
 from models.original_transformer import Transformer
 
 
-class TrainTransformer:
+class Trainer:
     def __init__(self, hyperparams):
-
-        self.model = Transformer(num_layers, embed_dim, num_heads, feedforward_dim, num_tokens, words_dic["<PAD>"])
+        num_layers = hyperparams["model_settings"]["num_layers"]
+        embed_dim = hyperparams["model_settings"]["embed_dim"]
+        num_heads = hyperparams["model_settings"]["num_heads"]
+        feedforward_dim = hyperparams["model_settings"]["feedforward_dim"]
+        num_tokens = hyperparams["model_settings"]["num_tokens"]
+        pad_token_id = hyperparams["model_settings"]["pad_token_id"]
+        self.model = Transformer(num_layers, embed_dim, num_heads, feedforward_dim, num_tokens, pad_token_id)
 
     @staticmethod
     def _check_cuda_availability():
@@ -68,7 +73,7 @@ class TrainTransformer:
         train_loss_array = []
         valid_loss_array = []
 
-        def train(epoch, current_step):
+        def _train(epoch, current_step):
             print('\nEpoch: %d' % epoch)
             # torch.autograd.set_detect_anomaly(True)
             model.train(,
@@ -106,7 +111,7 @@ class TrainTransformer:
                     scheduler.step()
                 except ValueError as e:
                     print(f"[Warning] {e} at step {batch_idx}. Reloading last checkpoint...")
-                    # current_step, _ = reset_from_last_checkpoint()
+                    current_step, _ = reset_from_last_checkpoint()
                     continue  # Skip this batch
                 train_loss += loss.item()
                 predicted = outputs.argmax(dim=-1)
@@ -144,7 +149,7 @@ class TrainTransformer:
               }, model_state_path)
               """
 
-        def test(epoch):
+        def _val(epoch):
             model.eval()
             test_loss = 0
             correct = 0
@@ -179,8 +184,8 @@ class TrainTransformer:
             }, f"./model/epoch{epoch}.ckpt")
 
         for epoch in range(current_epoch, num_epochs):
-            train(epoch, current_step)
-            test(epoch)
+            _train(epoch, current_step)
+            _val(epoch)
             current_step = 0
 
         text_save("./model/train_acc.txt", train_acc)
