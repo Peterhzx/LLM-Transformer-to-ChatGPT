@@ -8,19 +8,14 @@ import torch.nn.functional as F
 
 class Transformer(nn.Module):
     def __init__(self, num_layers, embed_dim, num_heads, feedforward_dim, num_tokens, pad_token_id,
-                 max_possible_seq_len=2048):  # src_num_tokens, tgt_num_tokens,
+                 max_possible_seq_len=2048):
         super(Transformer, self).__init__()
-        # self.src_embeddings = nn.Embedding(src_num_tokens, embed_dim, padding_idx=0)
-        # self.tgt_embeddings = nn.Embedding(tgt_num_tokens, embed_dim, padding_idx=0)
-        # self.register_buffer('padding_idx', torch.tensor([pad_token_id]))
         self.padding_idx = pad_token_id
         self.register_buffer('positional_encoding', self.build_positional_encoding(max_possible_seq_len, embed_dim))
         self.embeddings = nn.Embedding(num_tokens, embed_dim, padding_idx=pad_token_id)
-        # self.positional_encoding = torch.Tensor(batch_size * [[build_pos_enc(i, j) for j in range(embed_dim)] for i in range(seq_max_len)])
         self.encoder_layers = nn.ModuleList(
             [EncoderLayer(embed_dim, num_heads, feedforward_dim) for _ in range(num_layers)])
         self.encoder_cache = None
-        # self.register_buffer('encoder_cache', None)
         self.decoder_layers = nn.ModuleList(
             [DecoderLayer(embed_dim, num_heads, feedforward_dim) for _ in range(num_layers)])
 
@@ -33,21 +28,14 @@ class Transformer(nn.Module):
         src_key_padding_mask = src_key_padding_mask.to(decoder_input.device)
         decoder_input_key_padding_mask = decoder_input_key_padding_mask.to(decoder_input.device)
         if with_cache and self.encoder_cache is not None:  # inference with cached encoder output
-            # enc_emb = self.src_embeddings(encoder_input) + self.positional_encoding[:encoder_input.size(1), :].unsqueeze(0)
-            # dec_emb = self.tgt_embeddings(decoder_input) + self.positional_encoding[:decoder_input.size(1), :].unsqueeze(0)
-            # enc_emb = self.embeddings(encoder_input) + self.positional_encoding[:encoder_input.size(1), :].unsqueeze(0)
             assert decoder_input.size(1) <= self.positional_encoding.size(0), \
                 "decoder_input is longer than the precomputed positional encoding"
             dec_emb = self.embeddings(decoder_input) + self.positional_encoding[:decoder_input.size(1), :].unsqueeze(
                 0).to(decoder_input.device)
-            # enc_output = enc_emb
-            # for layer in self.encoder_layers:
-            # enc_output = layer(enc_output, src_key_padding_mask)
             self.encoder_cache = self.encoder_cache.to(decoder_input.device)
             dec_output = dec_emb
             for layer in self.decoder_layers:
                 dec_output = layer(dec_output, self.encoder_cache, decoder_input_key_padding_mask, src_key_padding_mask)
-            # out = dec_output @ self.tgt_embeddings.weight.T
             out = dec_output @ self.embeddings.weight.T
             return out
         else:
@@ -63,7 +51,6 @@ class Transformer(nn.Module):
             enc_output = enc_emb
             for layer in self.encoder_layers:
                 enc_output = layer(enc_output, src_key_padding_mask)
-            # self.register_buffer('encoder_cache', enc_output)
             if not self.training:
                 self.encoder_cache = enc_output
             dec_output = dec_emb

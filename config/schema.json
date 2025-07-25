@@ -2,49 +2,40 @@
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "LLM/NLP Hyperparameters",
   "type": "object",
-  "required": ["src_tokenizer_regex", "tgt_tokenizer_regex", "data_path"],
+  "required": ["Dataloader"],
   "properties": {
-    "src_tokenizer_regex": {
-      "type": "string",
-      "description": "Word level parser used for tokenizer training and tokenizing"
+    "Tokenizer": {
+      "type": "object",
+      "required": ["src_tokenizer_regex", "tgt_tokenizer_regex", "vocab_size"],
+      "properties": {
+        "src_tokenizer_regex": {
+          "type": "string",
+          "description": "Word level parser used for tokenizer training and tokenizing"
+        },
+        "tgt_tokenizer_regex": {
+          "type": "string",
+          "description": "Word level parser used for tokenizer training and tokenizing"
+        },
+        "vocab_size": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Target vocab size for tokenizer training"
+        },
+        "all_chars": {
+          "type": "string",
+
+        }
+      }
     },
-    "tgt_tokenizer_regex": {
-      "type": "string",
-      "description": "Word level parser used for tokenizer training and tokenizing"
-    },
-    "data_path": {
-      "type": "string",
-      "description": "Word level parser used for tokenizer training and tokenizing"
-    },
-    "vocab_size": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 50000,
-      "description": "Target vocab size for tokenizer training"
-    },
-    "batch_size": {
-      "type": "integer",
-      "minimum": 1,
-      "maximum": 1024
-    },
-    "epochs": {
-      "type": "integer",
-      "minimum": 1
-    },
-    "optimizer": {
-      "type": "string",
-      "enum": ["adam", "sgd", "rmsprop"],
-      "default": "adam"
-    },
-    "dropout": {
-      "type": "number",
-      "minimum": 0,
-      "maximum": 0.9,
-      "default": 0.2
-    },
-    "early_stopping": {
-      "type": "boolean",
-      "default": true
+    "Dataloader": {
+      "type": "object",
+      "required": ["data_path"],
+      "properties": {
+        "data_path": {
+          "type": "string",
+          "description": "Word level parser used for tokenizer training and tokenizing"
+        }
+      }
     }
   }
 }

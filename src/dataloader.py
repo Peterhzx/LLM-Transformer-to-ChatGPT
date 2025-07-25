@@ -5,7 +5,11 @@ from tqdm import tqdm
 
 
 class Dataloader:
-    def __init__(self, df_path, allowed_chars="", nrows=1000000):
+    def __init__(self, config):
+        df_path = config["data_path"]
+        allowed_chars = config.get("allowed_chars", "")
+        nrows = config.get("nrows", None)
+
         if df_path.endswith(".csv"):
             self.df = pd.read_csv(df_path, nrows=nrows)
         elif df_path.endswith(".xlsx"):

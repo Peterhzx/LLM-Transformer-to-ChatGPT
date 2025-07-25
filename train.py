@@ -17,7 +17,7 @@ def load_hyperparam(json_path=r".\config\config.json"):
 
 
 def train_tokenizer(params):
-    dataloader = Dataloader(params["data_path"], params["allowed_chars"])
+    dataloader = Dataloader(params["Dataloader"])
     tokenizer = Tokenizer()
     data_df = dataloader.get_df()
     tokenizer.train(data_df, params["vocab_size"], params["src_tokenizer_regex"], params["tgt_tokenizer_regex"], params["allowed_chars"], params["special_tokens"])
