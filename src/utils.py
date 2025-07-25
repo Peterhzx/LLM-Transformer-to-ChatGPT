@@ -43,6 +43,10 @@ def load_tokenizer(tokenizer, path=None):
     tokenizer.load(path)
 
 
+def tokenize_data(dataloader, tokenizer, params):
+    dataloader.tokenize_df(tokenizer, params)
+
+
 def train_model(dataloader, params):
     loader = getattr(dataloader, params["dataloader"]["type"])
     train_loader, val_loader, _ = loader(**params["dataloader"]["params"])

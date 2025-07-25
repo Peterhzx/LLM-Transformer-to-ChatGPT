@@ -229,6 +229,7 @@ class Trainer:
 
     def save(self):
         torch.save(self.model.state_dict(), self.ckpt_dir + "weights.pt")
+        print("model saved to " + self.ckpt_dir + "weights.pt")
         """
         src_tensor, decoder_input_tensor, _ = train_set.__getitem__(0)
         torch.onnx.export(

@@ -57,7 +57,10 @@ class Dataloader:
     def get_df(self, sample_size=0.1):
         return self.df.sample(frac=sample_size)
 
-    def get_transformer_dataloader(self, max_seq_len, batch_size, train_val_test_split=None):
+    def tokenize_df(self, tokenizer, params):
+        self.df = tokenizer.tokenize(self.df, params)
+
+    def get_transformer_dataloader(self, tokenizer, max_seq_len, batch_size, train_val_test_split=None):
         if train_val_test_split is None:
             train_val_test_split = [0.7, 0.15, 0.15]
 
