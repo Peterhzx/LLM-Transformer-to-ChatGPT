@@ -175,14 +175,21 @@ class Tokenizer:
             tokenized_df[col_name] = tokenized_col
         return tokenized_df
 
-    def train(self, df, vocab_size, src_tokenizer_regex, tgt_tokenizer_regex, all_chars, special_token_list):
+    def train(self, df, config):
+        vocab_size = config["vocab_size"]
+        src_tokenizer_regex = config["src_tokenizer_regex"]
+        tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
+        all_chars = config["all_chars"]
+        special_tokens = config["special_tokens"]
         print("Preprocessing...")
-        self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, all_chars, special_token_list)
+        self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, all_chars, special_tokens)
         print("Training...")
-        time.sleep(1)
+        time.sleep(0.5)
         self._train_loop(vocab_size)
 
-    def tokenize(self, df, src_tokenizer_regex, tgt_tokenizer_regex):
+    def tokenize(self, df, config):
+        src_tokenizer_regex = config["src_tokenizer_regex"]
+        tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
         print(f"Tokenizing DataFrame using {self._vocab_fingerprint(self.tokens)} vocab")
         tokenized_df = self._tokenize_df(df, src_tokenizer_regex, tgt_tokenizer_regex)
         return tokenized_df

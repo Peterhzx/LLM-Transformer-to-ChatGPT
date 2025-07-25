@@ -30,3 +30,6 @@ trained_models/
 *.bin
 checkpoints/
 *.ckpt
+
+# test file
+test.py

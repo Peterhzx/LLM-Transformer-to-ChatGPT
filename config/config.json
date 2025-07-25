@@ -6,7 +6,7 @@
     "tgt_tokenizer_regex": "\\d+(?:[\\.,]\\d+)* | [a-zA-ZàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]['’] | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)* | \\S\\S+ | \\S",
     "vocab_size": 30000,
     "special_tokens": ["<PAD>", "<BOS>", "<EOS>"],
-    "sample_size": 1000000
+    "sample_size": 0.1
   },
   "Dataloader": {
     "$comment": "config of Dataloader. data_path is required",

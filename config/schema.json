@@ -1,5 +1,5 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "LLM/NLP Hyperparameters",
   "type": "object",
   "required": ["Dataloader"],
@@ -10,10 +10,12 @@
       "properties": {
         "src_tokenizer_regex": {
           "type": "string",
+          "format": "regex",
           "description": "Word level parser used for tokenizer training and tokenizing"
         },
         "tgt_tokenizer_regex": {
           "type": "string",
+          "format": "regex",
           "description": "Word level parser used for tokenizer training and tokenizing"
         },
         "vocab_size": {
@@ -22,8 +24,21 @@
           "description": "Target vocab size for tokenizer training"
         },
         "all_chars": {
-          "type": "string",
-
+          "default": "",
+          "type": ["string", "array"],
+          "description": "Default tokens to include"
+        },
+        "special_tokens":{
+          "default": [],
+          "type": "array",
+          "description": "Default tokens to include"
+        },
+        "sample_size": {
+          "default": 0.1,
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1.0,
+          "description": "Fraction of samples to get from dataset for tokenizer training"
         }
       }
     },
@@ -34,6 +49,17 @@
         "data_path": {
           "type": "string",
           "description": "Word level parser used for tokenizer training and tokenizing"
+        },
+        "allowed_chars": {
+          "default": "",
+          "type": ["string", "array"],
+          "description": "Characters that are allowed through data clean up"
+        },
+        "nrows": {
+          "default": "None",
+          "type": "integer",
+          "minimum": 1,
+          "description": "Number of rows to read from local file"
         }
       }
     }
