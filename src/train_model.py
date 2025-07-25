@@ -71,7 +71,7 @@ class TrainTransformer:
         def train(epoch, current_step):
             print('\nEpoch: %d' % epoch)
             # torch.autograd.set_detect_anomaly(True)
-            model.train()
+            model.train(,
             train_loss = 0
             correct = 0
             total = 0

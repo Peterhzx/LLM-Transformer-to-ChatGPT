@@ -1,18 +1,17 @@
-import base64
-import hashlib
-import json
-import os
 import time
 
 import pandas as pd
 import re
 from tqdm import tqdm
 
+from tokenizer.Tokenizer import Tokenizer
+
 
 # TODO: add tokenize with token_ranks mode
 
-class Tokenizer:
+class BPE(Tokenizer):
     def __init__(self):
+        super(BPE).__init__()
         self.tokens = {}  # {"word": int}
         self.reversed_tokens = {}  # {int: "word"}
         self.words_count = {}  # {"word": int}
@@ -175,7 +174,7 @@ class Tokenizer:
             tokenized_df[col_name] = tokenized_col
         return tokenized_df
 
-    def train(self, df, config):
+    def train(self, df, config, **kwargs):
         vocab_size = config["vocab_size"]
         src_tokenizer_regex = config["src_tokenizer_regex"]
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
@@ -187,63 +186,9 @@ class Tokenizer:
         time.sleep(0.5)
         self._train_loop(vocab_size)
 
-    def tokenize(self, df, config):
+    def tokenize(self, df, config, **kwargs):
         src_tokenizer_regex = config["src_tokenizer_regex"]
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
         print(f"Tokenizing DataFrame using {self._vocab_fingerprint(self.tokens)} vocab")
         tokenized_df = self._tokenize_df(df, src_tokenizer_regex, tgt_tokenizer_regex)
         return tokenized_df
-
-    @staticmethod
-    def _vocab_fingerprint(d):
-        hasher = hashlib.sha256()
-
-        encoder = json.JSONEncoder(
-            sort_keys=True,
-            separators=(',', ':'),
-            ensure_ascii=True,
-            default=str
-        )
-        for chunk in encoder.iterencode(d):
-            hasher.update(chunk.encode('utf-8'))
-
-        # Get hash bytes and truncate
-        full_hash = hasher.digest()
-        hash_bytes = full_hash[:6]
-
-        # Encode to URL-safe base64 and remove padding
-        return base64.urlsafe_b64encode(hash_bytes).decode('ascii').rstrip('=')
-
-    def save(self, path=None):
-        if path is None:
-            with open("./tokens.json", "w") as f:
-                json.dump(self.tokens, f, indent=4)
-            with open("./reversed_tokens.json", "w") as f:
-                json.dump(self.reversed_tokens, f, indent=4)
-            with open("./fingerprint.txt", "w") as f:
-                f.write(f"tokens: {self._vocab_fingerprint(self.tokens)}\n"
-                        f"reversed tokens: {self._vocab_fingerprint(self.reversed_tokens)}")
-            print(f"{self._vocab_fingerprint(self.tokens)} vocab saved to {os.getcwd()}")
-        else:
-            with open(f"{path}/tokens.json", "w") as f:
-                json.dump(self.tokens, f, indent=4)
-            with open(f"{path}/reversed_tokens.json", "w") as f:
-                json.dump(self.reversed_tokens, f, indent=4)
-            with open(f"{path}/fingerprint.txt", "w") as f:
-                f.write(f"tokens: {self._vocab_fingerprint(self.tokens)}\n"
-                        f"reversed tokens: {self._vocab_fingerprint(self.reversed_tokens)}")
-            print(f"{self._vocab_fingerprint(self.tokens)} vocab saved to {path}")
-
-    def load(self, path=None):
-        if path is None:
-            with open("./tokens.json", "r") as f:
-                self.tokens = json.load(f)
-            with open("./reversed_tokens.json", "r") as f:
-                self.reversed_tokens = json.load(f)
-            print(f"{self._vocab_fingerprint(self.tokens)} vocab loaded from {os.getcwd()}")
-        else:
-            with open(f"{path}/tokens.json", "r") as f:
-                self.tokens = json.load(f)
-            with open(f"{path}/reversed_tokens.json", "r") as f:
-                self.reversed_tokens = json.load(f)
-            print(f"{self._vocab_fingerprint(self.tokens)} vocab loaded from {path}")
