@@ -190,5 +190,6 @@ class BPE(Tokenizer):
         src_tokenizer_regex = config["src_tokenizer_regex"]
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
         print(f"Tokenizing DataFrame using {self._vocab_fingerprint(self.tokens)} vocab")
+        time.sleep(0.5)
         tokenized_df = self._tokenize_df(df, src_tokenizer_regex, tgt_tokenizer_regex)
         return tokenized_df

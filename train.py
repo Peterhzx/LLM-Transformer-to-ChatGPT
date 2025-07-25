@@ -3,7 +3,7 @@ import sys
 
 from src.utils import train_tokenizer, load_config, load_data, save_tokenizer, tokenize_data, train_model
 
-if __name__ == '__main__':  # .\\config\\config.json
+if __name__ == '__main__':  # .\config\config.json
     if len(sys.argv) < 2:
         print("Usage: python train.py <config_path>")
         sys.exit(1)

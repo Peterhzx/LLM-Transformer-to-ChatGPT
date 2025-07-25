@@ -33,3 +33,8 @@ checkpoints/
 
 # test file
 test.py
+test/
+index.txt
+size.txt
+src_counts.txt
+tgt_counts.txt
