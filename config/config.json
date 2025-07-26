@@ -34,8 +34,8 @@
       "description": "save checkpoint every 5000 batch"
     },
     "resume": {
-      "value": false,
-      "ckpt_dir": "./checkpoints/transformer/2025_7_26_12_50_31/",
+      "value": true,
+      "ckpt_dir": "./checkpoints/transformer/2025_7_27/",
       "description": "when value=true, ckpt_dir is required. an example of ckpt_dir: ./checkpoints/transformer/<folder_name>/"
     },
     "model": {
