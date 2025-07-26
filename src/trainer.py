@@ -129,6 +129,7 @@ class Trainer:
     def _train(self, epoch, current_step, train_loader, train_acc, train_loss_array):
         print('\nEpoch: %d' % epoch)
         self.model.train()
+        # torch.autograd.set_detect_anomaly(True)
         time.sleep(0.5)
         train_loss = 0
         correct = 0
@@ -137,6 +138,8 @@ class Trainer:
         train_iter = islice(train_iter, current_step, None)
         pbar = tqdm(train_iter, total=len(train_loader), desc="Training", initial=current_step)
         for batch_idx, (src, decoder_input, targets) in enumerate(pbar, start=current_step):
+            if torch.isnan(src).any() or torch.isnan(decoder_input).any():
+                raise ValueError("NaN in input data")
             src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
             self.optimizer.zero_grad()
             try:
@@ -149,13 +152,22 @@ class Trainer:
                 if torch.isnan(loss):
                     raise ValueError("NaN in loss")
                 loss.backward()
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=5.0)  # It prevents exploding gradients in deep Transformer models.
+                for name, param in self.model.named_parameters():
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        print(f"NaN gradient in {name}")
+                        raise ValueError("NaN in gradients")
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)  # It prevents exploding gradients in deep Transformer models.
                 self.optimizer.step()
                 if self.scheduler is not None:
                     self.scheduler.step()
             except ValueError as e:
                 print(f"[Warning] {e} at step {batch_idx}. Reloading last checkpoint...")
-                _, _ = self._reset_from_last_checkpoint()
+                # _, _ = self._reset_from_last_checkpoint()
+                for name, param in self.model.named_parameters():
+                    if param.grad is not None and torch.isnan(param.grad).any():
+                        print(f"NaN gradient in {name}")
+                with open(self.ckpt_dir + "log.txt", "a") as f:
+                    f.write(f"{batch_idx}")
                 continue  # Skip this batch
             train_loss += loss.item()
             predicted = outputs.argmax(dim=-1)

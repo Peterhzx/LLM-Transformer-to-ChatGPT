@@ -166,6 +166,8 @@ class BPE(Tokenizer):
         for col_name in col_names:
             tokenized_col = []
             for sentence in tqdm(tokenized_df[col_name], desc=f"tokenizing col {col_name}", total=len(tokenized_df)):
+                if len(sentence) == 0:
+                    sentence.append(" ")
                 tokenized_sent = []
                 for word in sentence:
                     tokenized_word = self._tokenize_word(word, False)
@@ -180,10 +182,10 @@ class BPE(Tokenizer):
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
         all_chars = config["all_chars"]
         special_tokens = config["special_tokens"]
-        print("Preprocessing...")
+        print("Preprocessing data for training tokenizer...")
         time.sleep(0.5)
         self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, all_chars, special_tokens)
-        print("Training...")
+        print("Training tokenizer...")
         time.sleep(0.5)
         self._train_loop(vocab_size)
 

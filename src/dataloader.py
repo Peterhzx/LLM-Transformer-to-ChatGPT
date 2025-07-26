@@ -73,7 +73,7 @@ class Dataloader:
         val_set = TransformerDataset(self.df.iloc[train_size:(train_size + val_size)], max_seq_len)
         test_set = TransformerDataset(self.df.iloc[(train_size + val_size):dataset_size], max_seq_len)
 
-        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=False)
         val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
         test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
 

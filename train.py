@@ -11,6 +11,7 @@ if __name__ == '__main__':  # .\config\config.json
     config = load_config(sys.argv[1])
     dataloader = load_data(config["Dataloader"])
     tokenizer = load_tokenizer(config["Tokenizer"])
+    # tokenizer = train_tokenizer(dataloader, config["Tokenizer"])
     # save_tokenizer(tokenizer)
     tokenize_data(dataloader, tokenizer, config["Tokenizer"])
     trainer, test_loader = train_and_save_model(dataloader, config["Trainer"])
