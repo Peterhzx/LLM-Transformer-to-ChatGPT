@@ -69,8 +69,8 @@ class Trainer:
         lr_sch = getattr(torch.optim.lr_scheduler, hyperparams["type"])
         if hyperparams["type"] == "LambdaLR":
             if hyperparams["lambda"]["type"] == "Transformer_lambda":
-                embed_dim = hyperparams["lambda"]["param"]["embed_dim"]
-                warmup_steps = hyperparams["lambda"]["param"]["warmup_steps"]
+                embed_dim = hyperparams["lambda"]["params"]["embed_dim"]
+                warmup_steps = hyperparams["lambda"]["params"]["warmup_steps"]
                 lambda_lr = lambda step: embed_dim ** -0.5 * min((step + 1) ** -0.5, (step + 1) * warmup_steps ** -1.5)
                 self.scheduler = lr_sch(self.optimizer, lr_lambda=lambda_lr)
             else:
@@ -129,6 +129,7 @@ class Trainer:
     def _train(self, epoch, current_step, train_loader, train_acc, train_loss_array):
         print('\nEpoch: %d' % epoch)
         self.model.train()
+        time.sleep(0.5)
         train_loss = 0
         correct = 0
         total = 0

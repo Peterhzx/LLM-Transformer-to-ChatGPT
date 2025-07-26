@@ -40,8 +40,10 @@ def save_tokenizer(tokenizer, path=None):
     tokenizer.save(path)
 
 
-def load_tokenizer(tokenizer, path=None):
-    tokenizer.load(path)
+def load_tokenizer(params):
+    tokenizer = BPE()
+    tokenizer.load(params["load"]["dir"])
+    return tokenizer
 
 
 def tokenize_data(dataloader, tokenizer, params):

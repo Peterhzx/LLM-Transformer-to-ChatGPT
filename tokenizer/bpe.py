@@ -181,6 +181,7 @@ class BPE(Tokenizer):
         all_chars = config["all_chars"]
         special_tokens = config["special_tokens"]
         print("Preprocessing...")
+        time.sleep(0.5)
         self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, all_chars, special_tokens)
         print("Training...")
         time.sleep(0.5)
