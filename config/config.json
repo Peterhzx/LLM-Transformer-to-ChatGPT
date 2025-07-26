@@ -70,5 +70,20 @@
         "label_smoothing": 0.1
       }
     }
+  },
+  "Evaluator":{
+    "model": {
+      "type": "Transformer",
+      "params": {
+        "embed_dim": 512,
+        "num_layers": 6,
+        "num_heads": 8,
+        "feedforward_dim": 2048,
+        "num_tokens": 30000,
+        "pad_token_id": 0
+      }
+    },
+    "reversed_tokens_dir": "./",
+    "ckpt_dir": "./checkpoints/transformer/<folder_name>/"
   }
 }

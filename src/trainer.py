@@ -12,14 +12,12 @@ from models.original_transformer import Transformer
 
 class Trainer:
     def __init__(self, hyperparams):
-        self._init_ckpt_dir(hyperparams)
         self.pad_token_id = hyperparams["model"]["params"]["pad_token_id"]
         self.num_epoch = hyperparams["num_epoch"]
         self.save_period = hyperparams["save_period"]["value"]
-        self.device = self._check_cuda_availability()
+        self._check_cuda_availability()
+        self._init_ckpt_dir(hyperparams)
         self._init_model(hyperparams["model"])
-        self.model.apply(self._init_weights)
-        self.model.to(self.device)
         self._init_optimizer(hyperparams["optimizer"])
         if "lr_scheduler" in hyperparams:
             self._init_lr_scheduler(hyperparams["lr_scheduler"])
@@ -53,6 +51,8 @@ class Trainer:
     def _init_model(self, hyperparams):
         if hyperparams["type"] == "Transformer":
             self.model = Transformer(**hyperparams["params"])
+            self.model.apply(self._init_weights)
+            self.model.to(self.device)
         else:
             raise ValueError("Invalid model type")
 
@@ -82,11 +82,9 @@ class Trainer:
         crit = getattr(nn, hyperparams["type"])
         self.criterion = crit(**hyperparams["params"])
 
-    @staticmethod
-    def _check_cuda_availability():
-        device = "cuda" if torch.cuda.is_available() else "cpu"
-        print(f"Using {device} device")
-        return device
+    def _check_cuda_availability(self):
+        self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        print(f"Using {self.device} device")
 
     @staticmethod
     def _init_weights(m):
@@ -152,7 +150,8 @@ class Trainer:
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=5.0)  # It prevents exploding gradients in deep Transformer models.
                 self.optimizer.step()
-                self.scheduler.step()
+                if self.scheduler is not None:
+                    self.scheduler.step()
             except ValueError as e:
                 print(f"[Warning] {e} at step {batch_idx}. Reloading last checkpoint...")
                 _, _ = self._reset_from_last_checkpoint()
@@ -163,23 +162,38 @@ class Trainer:
             correct += ((predicted == targets) & mask).sum().float()
             total += mask.sum().float()
             if (batch_idx + 1) % self.save_period == 0:
-                torch.save({
-                    'current_epoch': epoch,
-                    'model_state_dict': self.model.state_dict(),
-                    'optimizer_state_dict': self.optimizer.state_dict(),
-                    'scheduler_state_dict': self.scheduler.state_dict(),
-                    'current_step': batch_idx + 1,
-                }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
+                if self.scheduler is not None:
+                    torch.save({
+                        'current_epoch': epoch,
+                        'model_state_dict': self.model.state_dict(),
+                        'optimizer_state_dict': self.optimizer.state_dict(),
+                        'scheduler_state_dict': self.scheduler.state_dict(),
+                        'current_step': batch_idx + 1,
+                    }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
+                else:
+                    torch.save({
+                        'current_epoch': epoch,
+                        'model_state_dict': self.model.state_dict(),
+                        'optimizer_state_dict': self.optimizer.state_dict(),
+                        'current_step': batch_idx + 1,
+                    }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
 
             pbar.set_postfix(loss=f"{train_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
             train_acc.append(correct / total)
             train_loss_array.append(train_loss / len(train_loader))
-        torch.save({
-            'current_epoch': epoch + 1,
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'scheduler_state_dict': self.scheduler.state_dict(),
-        }, self.ckpt_dir + f"epoch{epoch + 1}.ckpt")
+        if self.scheduler is not None:
+            torch.save({
+                'current_epoch': epoch + 1,
+                'model_state_dict': self.model.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+                'scheduler_state_dict': self.scheduler.state_dict(),
+            }, self.ckpt_dir + f"epoch{epoch + 1}.ckpt")
+        else:
+            torch.save({
+                'current_epoch': epoch + 1,
+                'model_state_dict': self.model.state_dict(),
+                'optimizer_state_dict': self.optimizer.state_dict(),
+            }, self.ckpt_dir + f"epoch{epoch + 1}.ckpt")
 
     def _val(self, val_loader, valid_acc, valid_loss_array):
         self.model.eval()
@@ -240,3 +254,12 @@ class Trainer:
             dynamo=True  # True or False to select the exporter to use
         )
         """
+
+    def get_weights_dir(self):
+        return self.ckpt_dir
+
+    def get_model(self):
+        return self.model
+
+    def get_device(self):
+        return self.device

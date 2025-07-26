@@ -1,7 +1,8 @@
 import sys
 
 
-from src.utils import train_tokenizer, load_config, load_data, save_tokenizer, tokenize_data, train_model
+from src.utils import train_tokenizer, load_config, load_data, save_tokenizer, tokenize_data, train_and_save_model, \
+    eval_model
 
 if __name__ == '__main__':  # .\config\config.json
     if len(sys.argv) < 2:
@@ -12,7 +13,8 @@ if __name__ == '__main__':  # .\config\config.json
     tokenizer = train_tokenizer(dataloader, config["Tokenizer"])
     save_tokenizer(tokenizer)
     tokenize_data(dataloader, tokenizer, config["Tokenizer"])
-    train_model(dataloader, config["Trainer"])
+    trainer, test_loader = train_and_save_model(dataloader, config["Trainer"])
+    eval_model(config["Evaluator"], test_loader, tokenizer, trainer)
 
 """
 import argparse
