@@ -192,8 +192,8 @@ class Trainer:
                     }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
 
             pbar.set_postfix(loss=f"{train_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
-            train_acc.append(correct / total)
-            train_loss_array.append(train_loss / len(train_loader))
+        train_acc.append(correct / total)
+        train_loss_array.append(train_loss / len(train_loader))
         if self.scheduler is not None:
             torch.save({
                 'current_epoch': epoch + 1,
