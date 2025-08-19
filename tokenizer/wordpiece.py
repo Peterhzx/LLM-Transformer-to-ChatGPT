@@ -27,7 +27,7 @@ class Wordpiece(Tokenizer):
         special_tokens = config["special_tokens"]
         print("Preprocessing data for training tokenizer...")
         time.sleep(0.5)
-        self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, special_tokens, all_symbols=all_symbols, all_characters=all_characters)
+        self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, special_tokens, all_symbols, all_characters)
         print("Training tokenizer...")
         time.sleep(0.5)
         self._train_loop(vocab_size)
@@ -40,9 +40,7 @@ class Wordpiece(Tokenizer):
         tokenized_df = self._tokenize_df(df, src_tokenizer_regex, tgt_tokenizer_regex)
         return tokenized_df
 
-    def _preprocess(self, df, src_tokenizer_regex, tgt_tokenizer_regex, special_token_list, **kwargs):
-        all_symbols = kwargs.get("all_symbols")
-        all_characters = kwargs.get("all_characters")
+    def _preprocess(self, df, src_tokenizer_regex, tgt_tokenizer_regex, special_token_list, all_symbols, all_characters):
         if isinstance(all_characters, list):
             all_characters = sorted(set(all_characters))
             all_characters = ''.join(chr(cp) for cp in all_characters)
