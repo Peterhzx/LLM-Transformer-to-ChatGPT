@@ -1,3 +1,4 @@
+import math
 import re
 import time
 
@@ -12,6 +13,8 @@ class Wordpiece(Tokenizer):
         super(Wordpiece).__init__()
         self.tokens = {}  # {"word": int}
         self.reversed_tokens = {}  # {int: "word"}
+        self.tokens_count = {}  # {"word": int}
+        self.total_count = 0
         self.words_count = {}  # {"word": int}
         self.tokenized_words = {}  # {"word": ["w", "or", "d"]}
         self.byte_pair_count = {}  # {"or": int}
@@ -95,9 +98,13 @@ class Wordpiece(Tokenizer):
                     else:
                         self.words_count[word] += 1
 
-        # initialize byte_pair_count and byte_pair_location
+        # initialize tokens_count, byte_pair_count and byte_pair_location
         for k, v in tqdm(self.tokenized_words.items(), desc="Counting and locating byte-pairs", total=len(self.tokenized_words)):
             for i in range(len(v) - 1):
+                if v[i] not in self.tokens_count:
+                    self.tokens_count[v[i]] = self.words_count[k]
+                else:
+                    self.tokens_count[v[i]] += self.words_count[k]
                 byte_pair = v[i] + v[i + 1]
                 if byte_pair not in self.byte_pair_count:
                     self.byte_pair_count[byte_pair] = self.words_count[k]
@@ -108,11 +115,27 @@ class Wordpiece(Tokenizer):
                         self.byte_pair_location[byte_pair][k] = [i]
                     else:
                         self.byte_pair_location[byte_pair][k].append(i)
+            if v[-1] not in self.tokens_count:
+                self.tokens_count[v[-1]] = self.words_count[k]
+            else:
+                self.tokens_count[v[-1]] += self.words_count[k]
+
+        # initialize total_count
+        for k, v in self.tokens_count.items():
+            self.total_count += v
 
     @staticmethod
     def _word_level_tokenizer(text, pattern):
         tokens = pattern.findall(text)
         return tokens
+
+    @staticmethod
+    def log_likelihood(counter, total):
+        ll = 0.0
+        for tok, c in counter.items():
+            p = c / total
+            ll += c * math.log(p)
+        return ll
 
     def _df_splitting(self, df, training, src_tokenizer_regex, tgt_tokenizer_regex):
         if training:
@@ -140,6 +163,7 @@ class Wordpiece(Tokenizer):
             self._merge_byte_pair()
 
     def _merge_byte_pair(self):
+
         new_token = max(self.byte_pair_count, key=self.byte_pair_count.get)
         index = len(self.tokens)
         self.tokens[new_token] = index
