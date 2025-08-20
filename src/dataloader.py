@@ -11,7 +11,7 @@ class Dataloader:
         allowed_chars = config.get("allowed_chars", "")
         nrows = config.get("nrows", None)
 
-        print("Loading data...")
+        print("Loading data")
         if df_path.endswith(".csv"):
             self.df = pd.read_csv(df_path, nrows=nrows)
         elif df_path.endswith(".xlsx"):

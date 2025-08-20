@@ -11,14 +11,17 @@ import tokenizer as tok
 
 
 class NLPModelPipeline:
-    def __init__(self, json_path=r".\config\config_trans.json"):
+    def __init__(self, config_path=r".\config\config_trans.json"):
         self.params = None
         self.dataloader = None
         self.tokenizer = None
         self.trainer = None
         self.evaluator = None
         self.test_loader = None
+        self._load_config(config_path)
 
+    def _load_config(self, json_path):
+        print("Loading configuration...")
         with open(json_path, 'r', encoding='utf-8') as f:
             self.params = json.load(f)
         with open(r".\config\schema.json", 'r') as f:
@@ -31,10 +34,12 @@ class NLPModelPipeline:
             sys.exit(1)
 
     def _load_data(self):
+        print("Creating Dataloader...")
         self.dataloader = Dataloader(self.params["Dataloader"])
 
     def _prepare_tokenizer(self):
-        self.tokenizer = getattr(tok, self.params["Tokenizer"]["type"])
+        print("Preparing tokenizer...")
+        self.tokenizer = getattr(tok, self.params["Tokenizer"]["type"])()
         if self.params["Tokenizer"]["load"]["value"]:
             self.tokenizer.load(self.params["Tokenizer"]["load"]["dir"])
         else:
@@ -43,9 +48,11 @@ class NLPModelPipeline:
             self.tokenizer.save(self.params["Tokenizer"]["load"]["dir"])
 
     def _tokenize_data(self):
+        print("Tokenizing data...")
         self.dataloader.tokenize_df(self.tokenizer, self.params["Tokenizer"])
 
     def _train_and_save_model(self):
+        print("Training model...")
         loader = getattr(self.dataloader, self.params["Trainer"]["dataloader"]["type"])
         train_loader, val_loader, self.test_loader = loader(**self.params["Trainer"]["dataloader"]["params"])
         self.trainer = Trainer(self.params["Trainer"])
@@ -53,6 +60,7 @@ class NLPModelPipeline:
         self.trainer.save()
 
     def _eval_model(self):
+        print("Evaluating model...")
         self.evaluator = Evaluator(self.params["Evaluator"], self.tokenizer, self.trainer)
         self.evaluator.evaluate(self.test_loader)
 
