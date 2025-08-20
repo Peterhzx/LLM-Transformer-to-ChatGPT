@@ -25,12 +25,11 @@ class Wordpiece(Tokenizer):
         vocab_size = config["vocab_size"]
         src_tokenizer_regex = config["src_tokenizer_regex"]
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
-        all_symbols = config["all_symbols"]
-        all_characters = config["all_characters"]
+        all_chars = config["all_chars"]
         special_tokens = config["special_tokens"]
         print("Preprocessing data for training tokenizer...")
         time.sleep(0.5)
-        self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, special_tokens, all_symbols, all_characters)
+        self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, special_tokens, all_chars)
         print("Training tokenizer...")
         time.sleep(0.5)
         self._train_loop(vocab_size)
@@ -38,20 +37,15 @@ class Wordpiece(Tokenizer):
     def tokenize(self, df, config, **kwargs):
         src_tokenizer_regex = config["src_tokenizer_regex"]
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
-        all_symbols = config["all_symbols"]
         print(f"Tokenizing DataFrame using {self._vocab_fingerprint(self.tokens)} vocab")
         time.sleep(0.5)
-        tokenized_df = self._tokenize_df(df, src_tokenizer_regex, tgt_tokenizer_regex, all_symbols)
+        tokenized_df = self._tokenize_df(df, src_tokenizer_regex, tgt_tokenizer_regex)
         return tokenized_df
 
-    def _preprocess(self, df, src_tokenizer_regex, tgt_tokenizer_regex, special_token_list, all_symbols, all_characters):
-        if isinstance(all_characters, list):
-            all_characters = sorted(set(all_characters))
-            all_characters = ''.join(chr(cp) for cp in all_characters)
-
-        if isinstance(all_symbols, list):
-            all_symbols = sorted(set(all_symbols))
-            all_symbols = ''.join(chr(cp) for cp in all_symbols)
+    def _preprocess(self, df, src_tokenizer_regex, tgt_tokenizer_regex, special_token_list, all_chars):
+        if isinstance(all_chars, list):
+            all_chars = sorted(set(all_chars))
+            all_chars = ''.join(chr(cp) for cp in all_chars)
 
         # initialize tokens and reversed_tokens dict
         for i in range(len(special_token_list)):
@@ -63,22 +57,7 @@ class Wordpiece(Tokenizer):
         self.reversed_tokens[index] = "<SOW>"
 
         index = len(self.tokens)
-        for char in all_characters:
-            self.tokens["<B>" + char] = index
-            self.reversed_tokens[index] = "<B>" + char
-            index = index + 1
-            self.tokens["<M>" + char] = index
-            self.reversed_tokens[index] = "<M>" + char
-            index = index + 1
-            self.tokens["<E>" + char] = index
-            self.reversed_tokens[index] = "<E>" + char
-            index = index + 1
-            self.tokens[char] = index
-            self.reversed_tokens[index] = char
-            index = index + 1
-
-        index = len(self.tokens)
-        for char in all_symbols:
+        for char in all_chars:
             self.tokens[char] = index
             self.reversed_tokens[index] = char
             index = index + 1
@@ -86,7 +65,7 @@ class Wordpiece(Tokenizer):
         # split data into list of words. do not include symbols.
         df_word_level_tokenized = self._df_splitting(df, True, src_tokenizer_regex, tgt_tokenizer_regex)
 
-        # initialize words_count and words_split
+        # initialize words_count and tokenized_words
         col_names = df_word_level_tokenized.columns.tolist()
         for col_name in col_names:
             for sentence in tqdm(df_word_level_tokenized[col_name], desc=f"Counting words in col {col_name}", total=len(df_word_level_tokenized)):
@@ -122,8 +101,7 @@ class Wordpiece(Tokenizer):
                 self.tokens_count[v[-1]] += self.words_count[k]
 
         # initialize total_count
-        for k, v in self.tokens_count.items():
-            self.total_count += v
+        self.total_count = sum(self.tokens_count.values())
 
     @staticmethod
     def _word_level_tokenizer(text, pattern):
@@ -160,34 +138,42 @@ class Wordpiece(Tokenizer):
         return df_word_level_tokenized
 
     def _train_loop(self, vocab_size):
-        for _ in tqdm(range(vocab_size - len(self.tokens)), desc="Training", total=vocab_size - len(self.tokens)):
+        for _ in tqdm(range(int((vocab_size - len(self.tokens))/2)), desc="Training", total=int((vocab_size - len(self.tokens))/2)):
             self._merge_byte_pair()
 
     def _merge_byte_pair(self):
         # compute likelihood
         total_ll = self.log_likelihood(self.tokens_count, self.total_count)
-        new_ll = {}
+        ll_gain = {}
+
         for k, v in self.byte_pair_count.items():
             new_tokens_count = self.tokens_count.copy()
             new_tokens_count[k] = v
+
             word, loc_list = next(iter(self.byte_pair_location[k].items()))
             location = loc_list[0]
             left_part = self.tokenized_words[word][location]
             right_part = self.tokenized_words[word][location+1]
+
             new_tokens_count[left_part] -= v
             new_tokens_count[right_part] -= v
             if new_tokens_count[left_part] <= 0:
                 del new_tokens_count[left_part]
             if new_tokens_count[right_part] <= 0:
                 del new_tokens_count[right_part]
-            new_ll[k] = self.log_likelihood(new_tokens_count, self.total_count - v)
-        for k in new_ll:
-            new_ll[k] -= total_ll
-        new_token = max(new_ll, key=new_ll.get)
+
+            ll_gain[k] = self.log_likelihood(new_tokens_count, self.total_count - v) - total_ll
+
+        new_token = max(ll_gain, key=ll_gain.get)
 
         index = len(self.tokens)
         self.tokens[new_token] = index
         self.reversed_tokens[index] = new_token
+
+        index += 1
+        sub_word_token = "##" + new_token
+        self.tokens[sub_word_token] = index
+        self.reversed_tokens[index] = sub_word_token
 
         # update tokens_count and total_count
         word, loc_list = next(iter(self.byte_pair_location[new_token].items()))
@@ -231,7 +217,7 @@ class Wordpiece(Tokenizer):
                         self.byte_pair_location[byte_pair][k].append(i)
         del self.byte_pair_location[new_token]
 
-    def _tokenize_df(self, df, src_tokenizer_regex, tgt_tokenizer_regex, all_symbols):
+    def _tokenize_df(self, df, src_tokenizer_regex, tgt_tokenizer_regex):
         tokenized_df = self._df_splitting(df, False, src_tokenizer_regex, tgt_tokenizer_regex)
         col_names = tokenized_df.columns.tolist()
         for col_name in col_names:
@@ -241,34 +227,26 @@ class Wordpiece(Tokenizer):
                     sentence.append(" ")
                 tokenized_sent = []
                 for word in sentence:
-                    tokenized_word = self._tokenize_word(word, False, all_symbols=all_symbols)
+                    tokenized_word = self._tokenize_word(word, False)
                     tokenized_sent += tokenized_word
                 tokenized_col.append(tokenized_sent)
             tokenized_df[col_name] = tokenized_col
         return tokenized_df
 
-    def _tokenize_word(self, word, training, **kwargs):
+    def _tokenize_word(self, word, training):
         tokenized_word = []
         matched_byte_pair = "" if training else "<SOW>"
         for char in word:
             if (matched_byte_pair + char) in self.tokens:
                 matched_byte_pair += char
             else:
-                tokenized_word.append(matched_byte_pair if training else self.tokens.get(matched_byte_pair, 0))
+                token = matched_byte_pair if training else self.tokens.get(matched_byte_pair, 0)
+                if not training and tokenized_word:
+                    token = "##" + str(token)
+                tokenized_word.append(token)
                 matched_byte_pair = char
-        tokenized_word.append(matched_byte_pair if training else self.tokens.get(matched_byte_pair, 0))
-        if not training and len(word) == len(tokenized_word) - 1:
-            all_symbols = kwargs.get("all_symbols")
-            if isinstance(all_symbols, list):
-                all_symbols = sorted(set(all_symbols))
-                all_symbols = ''.join(chr(cp) for cp in all_symbols)
-            is_char = True
-            for char in word:
-                if char in all_symbols:
-                    is_char = False
-            if is_char:
-                tokenized_word[0] -= 3
-                tokenized_word[-1] -= 1
-                for i in range(1, len(tokenized_word) - 1):
-                    tokenized_word[i] -= 2
+        token = matched_byte_pair if training else self.tokens.get(matched_byte_pair, 0)
+        if not training and tokenized_word:
+            token = "##" + str(token)
+        tokenized_word.append(token)
         return tokenized_word
