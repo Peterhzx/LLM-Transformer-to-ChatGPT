@@ -163,13 +163,45 @@ class Wordpiece(Tokenizer):
             self._merge_byte_pair()
 
     def _merge_byte_pair(self):
+        # compute likelihood
+        total_ll = self.log_likelihood(self.tokens_count, self.total_count)
+        new_ll = {}
+        for k, v in self.byte_pair_count.items():
+            new_tokens_count = self.tokens_count.copy()
+            new_tokens_count[k] = v
+            word, loc_list = next(iter(self.byte_pair_location[k].items()))
+            location = loc_list[0]
+            left_part = self.tokenized_words[word][location]
+            right_part = self.tokenized_words[word][location+1]
+            new_tokens_count[left_part] -= v
+            new_tokens_count[right_part] -= v
+            if new_tokens_count[left_part] <= 0:
+                del new_tokens_count[left_part]
+            if new_tokens_count[right_part] <= 0:
+                del new_tokens_count[right_part]
+            new_ll[k] = self.log_likelihood(new_tokens_count, self.total_count - v)
+        for k in new_ll:
+            new_ll[k] -= total_ll
+        new_token = max(new_ll, key=new_ll.get)
 
-        new_token = max(self.byte_pair_count, key=self.byte_pair_count.get)
         index = len(self.tokens)
         self.tokens[new_token] = index
         self.reversed_tokens[index] = new_token
 
-        # update byte_pair_location and byte_pair_count
+        # update tokens_count and total_count
+        word, loc_list = next(iter(self.byte_pair_location[k].items()))
+        location = loc_list[0]
+        left_part = self.tokenized_words[word][location]
+        right_part = self.tokenized_words[word][location + 1]
+        self.tokens_count[left_part] -= self.byte_pair_count[new_token]
+        self.tokens_count[right_part] -= self.byte_pair_count[new_token]
+        self.total_count -= self.byte_pair_count[new_token]
+        if self.tokens_count[left_part] <= 0:
+            del self.tokens_count[left_part]
+        if self.tokens_count[right_part] <= 0:
+            del self.tokens_count[right_part]
+
+        # update tokenized_words, byte_pair_location and byte_pair_count
         for k, v in list(self.byte_pair_location[new_token].items()):
 
             word_list = self.tokenized_words[k]
