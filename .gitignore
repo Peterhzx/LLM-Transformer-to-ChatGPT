@@ -20,6 +20,7 @@ data/
 *.h5
 
 # saved tokenizer
+trained_tokenizer/
 fingerprint.txt
 tokens.json
 reversed_tokens.json

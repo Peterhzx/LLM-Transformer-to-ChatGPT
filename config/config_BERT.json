@@ -9,7 +9,7 @@
     "src_tokenizer_regex": "\\d+(?:[\\.,]\\d+)* | \\w+(?:[-']\\w+)* | \\S\\S+ | \\S",
     "tgt_tokenizer_regex": "\\d+(?:[\\.,]\\d+)* | [a-zA-ZàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]['’] | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)* | \\S\\S+ | \\S",
     "vocab_size": 30000,
-    "special_tokens": ["<PAD>", "<BOS>", "<EOS>"],
+    "special_tokens": ["<PAD>", "<UNK>", "<MASK>", "<CLS>", "<SEP>"],
     "sample_size": 0.2
   },
   "Dataloader": {
