@@ -8,9 +8,9 @@ from tqdm import tqdm
 from tokenizer._tokenizer import Tokenizer
 
 
-class Wordpiece(Tokenizer):
+class WordPiece(Tokenizer):
     def __init__(self):
-        super(Wordpiece).__init__()
+        super(WordPiece).__init__()
         self.tokens = {}  # {"word": int}
         self.reversed_tokens = {}  # {int: "word"}
         self.tokens_count = {}  # {"word": int}

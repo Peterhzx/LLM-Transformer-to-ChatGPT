@@ -7,7 +7,7 @@ from jsonschema import validate
 from src.dataloader import Dataloader
 from src.evaluator import Evaluator
 from src.trainer import Trainer
-from tokenizer.bpe import BPE
+import tokenizer as tok
 
 
 def load_config(json_path=r".\config\config.json"):
@@ -30,7 +30,7 @@ def load_data(params):
 
 
 def train_tokenizer(dataloader, params):
-    tokenizer = BPE()
+    tokenizer = getattr(tok, params["type"])
     if params["load"]["value"]:
         tokenizer.load(params["load"]["dir"])
     else:

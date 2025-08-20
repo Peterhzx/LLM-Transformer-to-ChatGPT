@@ -1,6 +1,7 @@
 {
   "Tokenizer": {
     "$comment": "config of Tokenizer. vocab_size, src_tokenizer_regex, tgt_tokenizer_regex are required",
+    "type": "BPE",
     "load": {
       "value": true,
       "dir": "./"
