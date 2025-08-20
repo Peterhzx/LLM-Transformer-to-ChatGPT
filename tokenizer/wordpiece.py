@@ -5,7 +5,7 @@ import time
 import pandas as pd
 from tqdm import tqdm
 
-from tokenizer._tokenizer import Tokenizer
+from tokenizer import Tokenizer
 
 
 class WordPiece(Tokenizer):

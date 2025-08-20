@@ -4,7 +4,7 @@ import pandas as pd
 import re
 from tqdm import tqdm
 
-from tokenizer._tokenizer import Tokenizer
+from tokenizer import Tokenizer
 
 
 # TODO: add tokenize with token_ranks mode
