@@ -7,7 +7,7 @@ import torch
 from torch import nn
 from tqdm import tqdm
 
-from models.original_transformer import Transformer
+import models
 
 
 class Trainer:
@@ -49,12 +49,10 @@ class Trainer:
                     os.mkdir(self.ckpt_dir)
 
     def _init_model(self, hyperparams):
-        if hyperparams["type"] == "Transformer":
-            self.model = Transformer(**hyperparams["params"])
-            self.model.apply(self._init_weights)
-            self.model.to(self.device)
-        else:
-            raise ValueError("Invalid model type")
+        model_type = getattr(models, hyperparams["type"])
+        self.model = model_type(**hyperparams["params"])
+        self.model.apply(self._init_weights)
+        self.model.to(self.device)
 
     def _init_optimizer(self, hyperparams):
         optim = getattr(torch.optim, hyperparams["type"])

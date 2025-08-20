@@ -6,7 +6,7 @@ import torch
 from torchmetrics.text import BLEUScore
 from tqdm import tqdm
 
-from models.original_transformer import Transformer
+import models
 
 
 class Evaluator:
@@ -32,11 +32,9 @@ class Evaluator:
         print(f"Using {self.device} device")
 
     def _init_model(self, hyperparams):
-        if hyperparams["type"] == "Transformer":
-            self.model = Transformer(**hyperparams["params"])
-            self.model.to(self.device)
-        else:
-            raise ValueError("Invalid model type")
+        model_type = getattr(models, hyperparams["type"])
+        self.model = model_type(**hyperparams["params"])
+        self.model.to(self.device)
 
     def _load_from_last_weights(self, ckpt_dir):
         self.ckpt_dir = ckpt_dir
