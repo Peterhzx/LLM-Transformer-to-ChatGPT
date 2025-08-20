@@ -3,6 +3,7 @@
     "$comment": "config of Tokenizer. vocab_size, src_tokenizer_regex, tgt_tokenizer_regex are required",
     "type": "BPE",
     "load": {
+      "$comment": "key value is for load tokenizer from local file or train a new one. key dir is the directory to load tokenizer from or save tokenizer to ",
       "value": true,
       "dir": "./"
     },

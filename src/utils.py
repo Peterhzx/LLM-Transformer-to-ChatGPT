@@ -10,52 +10,55 @@ from src.trainer import Trainer
 import tokenizer as tok
 
 
-def load_config(json_path=r".\config\config.json"):
-    with open(json_path, 'r', encoding='utf-8') as f:
-        params = json.load(f)
-    with open(r".\config\schema.json", 'r') as f:
-        schema = json.load(f)
-    try:
-        validate(instance=params, schema=schema)
-        print("Valid configuration!")
-        return params
-    except jsonschema.exceptions.ValidationError as err:
-        print(f"Invalid configuration: {err}")
-        sys.exit(1)
+class NLPModelPipeline:
+    def __init__(self, json_path=r".\config\config_trans.json"):
+        self.params = None
+        self.dataloader = None
+        self.tokenizer = None
+        self.trainer = None
+        self.evaluator = None
+        self.test_loader = None
 
+        with open(json_path, 'r', encoding='utf-8') as f:
+            self.params = json.load(f)
+        with open(r".\config\schema.json", 'r') as f:
+            schema = json.load(f)
+        try:
+            validate(instance=self.params, schema=schema)
+            print("Valid configuration!")
+        except jsonschema.exceptions.ValidationError as err:
+            print(f"Invalid configuration: {err}")
+            sys.exit(1)
 
-def load_data(params):
-    dataloader = Dataloader(params)
-    return dataloader
+    def _load_data(self):
+        self.dataloader = Dataloader(self.params["Dataloader"])
 
+    def _prepare_tokenizer(self):
+        self.tokenizer = getattr(tok, self.params["Tokenizer"]["type"])
+        if self.params["Tokenizer"]["load"]["value"]:
+            self.tokenizer.load(self.params["Tokenizer"]["load"]["dir"])
+        else:
+            data_df = self.dataloader.get_df(self.params["Tokenizer"]["sample_size"])
+            self.tokenizer.train(data_df, self.params["Tokenizer"])
+            self.tokenizer.save(self.params["Tokenizer"]["load"]["dir"])
 
-def train_tokenizer(dataloader, params):
-    tokenizer = getattr(tok, params["type"])
-    if params["load"]["value"]:
-        tokenizer.load(params["load"]["dir"])
-    else:
-        data_df = dataloader.get_df(params["sample_size"])
-        tokenizer.train(data_df, params)
-    return tokenizer
+    def _tokenize_data(self):
+        self.dataloader.tokenize_df(self.tokenizer, self.params["Tokenizer"])
 
+    def _train_and_save_model(self):
+        loader = getattr(self.dataloader, self.params["Trainer"]["dataloader"]["type"])
+        train_loader, val_loader, self.test_loader = loader(**self.params["Trainer"]["dataloader"]["params"])
+        self.trainer = Trainer(self.params["Trainer"])
+        self.trainer.train(train_loader, val_loader)
+        self.trainer.save()
 
-def save_tokenizer(tokenizer, path=None):
-    tokenizer.save(path)
+    def _eval_model(self):
+        self.evaluator = Evaluator(self.params["Evaluator"], self.tokenizer, self.trainer)
+        self.evaluator.evaluate(self.test_loader)
 
-
-def tokenize_data(dataloader, tokenizer, params):
-    dataloader.tokenize_df(tokenizer, params)
-
-
-def train_and_save_model(dataloader, params):
-    loader = getattr(dataloader, params["dataloader"]["type"])
-    train_loader, val_loader, test_loader = loader(**params["dataloader"]["params"])
-    trainer = Trainer(params)
-    trainer.train(train_loader, val_loader)
-    trainer.save()
-    return trainer, test_loader
-
-
-def eval_model(params, test_loader, tokenizer=None, trainer=None):
-    evaluator = Evaluator(params, tokenizer, trainer)
-    evaluator.evaluate(test_loader)
+    def run_pipline(self):
+        self._load_data()
+        self._prepare_tokenizer()
+        self._tokenize_data()
+        self._train_and_save_model()
+        self._eval_model()
