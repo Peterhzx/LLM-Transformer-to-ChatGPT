@@ -18,6 +18,7 @@ data/
 *.csv
 *.pkl
 *.h5
+*.parquet
 
 # saved tokenizer
 trained_tokenizer/

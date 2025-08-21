@@ -2,7 +2,7 @@ import pandas as pd
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from src.datasets import TransformerDataset
+from src.datasets import TransformerDataset, BERTDataset
 
 
 class Dataloader:
@@ -18,6 +18,8 @@ class Dataloader:
             self.df = pd.read_excel(df_path, nrows=nrows)
         elif df_path.endswith(".json"):
             self.df = pd.read_json(df_path, nrows=nrows)
+        elif df_path.endswith(".parquet"):
+            self.df = pd.read_parquet(df_path, nrows=nrows, engine='pyarrow')
         else:
             raise ValueError("file formate should be: .csv .xlsx .json")
 
@@ -61,7 +63,7 @@ class Dataloader:
     def tokenize_df(self, tokenizer, params):
         self.df = tokenizer.tokenize(self.df, params)
 
-    def get_transformer_dataloader(self, max_seq_len, batch_size, train_val_test_split=None):
+    def get_transformer_dataloader(self, max_seq_len, batch_size, pad_token_id=0, bos_token_id=1, eos_token_id=2, train_val_test_split=None):
         if train_val_test_split is None:
             train_val_test_split = [0.7, 0.15, 0.15]
 
@@ -69,9 +71,27 @@ class Dataloader:
         train_size = int(train_val_test_split[0] * dataset_size)
         val_size = int(train_val_test_split[1] * dataset_size)
 
-        train_set = TransformerDataset(self.df.iloc[:train_size], max_seq_len)
-        val_set = TransformerDataset(self.df.iloc[train_size:(train_size + val_size)], max_seq_len)
-        test_set = TransformerDataset(self.df.iloc[(train_size + val_size):dataset_size], max_seq_len)
+        train_set = TransformerDataset(self.df.iloc[:train_size], max_seq_len, pad_token_id, bos_token_id, eos_token_id)
+        val_set = TransformerDataset(self.df.iloc[train_size:(train_size + val_size)], max_seq_len, pad_token_id, bos_token_id, eos_token_id)
+        test_set = TransformerDataset(self.df.iloc[(train_size + val_size):dataset_size], max_seq_len, pad_token_id, bos_token_id, eos_token_id)
+
+        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
+        val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
+        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False)
+
+        return train_loader, val_loader, test_loader
+
+    def get_bert_dataloader(self, max_seq_len, batch_size, pad_token_id=0, mask_token_id=1, cls_token_id=2, sep_token_id=3, isnext_token_id=4, notnext_token_id=5, train_val_test_split=None):
+        if train_val_test_split is None:
+            train_val_test_split = [0.7, 0.15, 0.15]
+
+        dataset_size = len(self.df)
+        train_size = int(train_val_test_split[0] * dataset_size)
+        val_size = int(train_val_test_split[1] * dataset_size)
+
+        train_set = BERTDataset(self.df.iloc[:train_size], max_seq_len, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
+        val_set = BERTDataset(self.df.iloc[train_size:(train_size + val_size)], max_seq_len, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
+        test_set = BERTDataset(self.df.iloc[(train_size + val_size):dataset_size], max_seq_len, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
 
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
