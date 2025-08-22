@@ -6,7 +6,7 @@ from jsonschema import validate
 
 from src.dataloader import Dataloader
 from src.evaluator import Evaluator
-from src.trainer import Trainer
+import trainer as tr
 import tokenizer as tok
 
 
@@ -55,7 +55,8 @@ class NLPModelPipeline:
         print("Training model...")
         loader = getattr(self.dataloader, self.params["Trainer"]["dataloader"]["type"])
         train_loader, val_loader, self.test_loader = loader(**self.params["Trainer"]["dataloader"]["params"])
-        self.trainer = Trainer(self.params["Trainer"])
+        _trainer = getattr(tr, self.params["Trainer"]["type"])
+        self.trainer = _trainer(self.params["Trainer"])
         self.trainer.train(train_loader, val_loader)
         self.trainer.save()
 
