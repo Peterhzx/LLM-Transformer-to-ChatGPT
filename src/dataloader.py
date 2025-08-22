@@ -81,7 +81,7 @@ class Dataloader:
 
         return train_loader, val_loader, test_loader
 
-    def get_bert_dataloader(self, max_seq_len, batch_size, pad_token_id=0, mask_token_id=1, cls_token_id=2, sep_token_id=3, isnext_token_id=4, notnext_token_id=5, train_val_test_split=None):
+    def get_bert_dataloader(self, max_seq_len, batch_size, random_token_start, random_token_end, pad_token_id=0, mask_token_id=1, cls_token_id=2, sep_token_id=3, isnext_token_id=4, notnext_token_id=5, train_val_test_split=None):
         if train_val_test_split is None:
             train_val_test_split = [0.7, 0.15, 0.15]
 
@@ -89,9 +89,9 @@ class Dataloader:
         train_size = int(train_val_test_split[0] * dataset_size)
         val_size = int(train_val_test_split[1] * dataset_size)
 
-        train_set = BERTDataset(self.df.iloc[:train_size], max_seq_len, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
-        val_set = BERTDataset(self.df.iloc[train_size:(train_size + val_size)], max_seq_len, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
-        test_set = BERTDataset(self.df.iloc[(train_size + val_size):dataset_size], max_seq_len, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
+        train_set = BERTDataset(self.df.iloc[:train_size], max_seq_len, random_token_start, random_token_end, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
+        val_set = BERTDataset(self.df.iloc[train_size:(train_size + val_size)], max_seq_len, random_token_start, random_token_end, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
+        test_set = BERTDataset(self.df.iloc[(train_size + val_size):dataset_size], max_seq_len, random_token_start, random_token_end, pad_token_id, mask_token_id, cls_token_id, sep_token_id, isnext_token_id, notnext_token_id)
 
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False)
