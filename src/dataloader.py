@@ -21,7 +21,7 @@ class Dataloader:
         elif df_path.endswith(".parquet"):
             self.df = pd.read_parquet(df_path, nrows=nrows, engine='pyarrow')
         else:
-            raise ValueError("file formate should be: .csv .xlsx .json")
+            raise ValueError("file formate should be: .csv .xlsx .json .parquet")
 
         if isinstance(allowed_chars, list):
             code_points = sorted(set(allowed_chars))
