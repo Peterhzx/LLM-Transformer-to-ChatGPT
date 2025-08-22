@@ -13,6 +13,7 @@ class BERTTrainer(Trainer):
         self.pad_token_id = hyperparams["model"]["params"]["pad_token_id"]
         self.num_epoch = hyperparams["num_epoch"]
         self.save_period = hyperparams["save_period"]["value"]
+        self.batch_size = hyperparams["dataloader"]["params"]["batch_size"]
         self._check_cuda_availability()
         self._init_ckpt_dir(hyperparams)
         self._init_model(hyperparams["model"])
@@ -29,6 +30,7 @@ class BERTTrainer(Trainer):
         # torch.autograd.set_detect_anomaly(True)
         time.sleep(0.5)
         train_loss = 0
+        num_batch = 0
         correct = 0
         total = 0
         train_iter = iter(train_loader)
@@ -43,10 +45,18 @@ class BERTTrainer(Trainer):
                 outputs = self.model(src)
                 if torch.isnan(outputs).any():
                     raise ValueError("NaN in model output")
-                pred_list.insert(0, 0)
-                outputs = outputs.reshape(-1, outputs.size(-1))
-                targets = targets.reshape(-1)
-                loss = self.criterion(outputs, targets)
+
+                loss_mlm = 0
+                for b in range(self.batch_size):
+                    masked_idx = pred_list[b]
+                    masked_logits = outputs[b, masked_idx, :]
+                    masked_targets = targets[b, masked_idx]
+                    loss_mlm += self.criterion(masked_logits, masked_targets)
+                    predicted = masked_logits.argmax(dim=-1)
+                    correct += (predicted == masked_targets).sum().float()
+                    total += masked_targets.sum().float()
+
+                loss = loss_mlm / self.batch_size
                 if torch.isnan(loss):
                     raise ValueError("NaN in loss")
                 loss.backward()
@@ -68,10 +78,6 @@ class BERTTrainer(Trainer):
                     f.write(f"{batch_idx}")
                 continue  # Skip this batch
             train_loss += loss.item()
-            predicted = outputs.argmax(dim=-1)
-            mask = (targets != self.pad_token_id)
-            correct += ((predicted == targets) & mask).sum().float()
-            total += mask.sum().float()
             if (batch_idx + 1) % self.save_period == 0:
                 if self.scheduler is not None:
                     torch.save({
@@ -89,9 +95,10 @@ class BERTTrainer(Trainer):
                         'current_step': batch_idx + 1,
                     }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
 
-            pbar.set_postfix(loss=f"{train_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
+            num_batch += 1
+            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}")
         train_acc.append(correct / total)
-        train_loss_array.append(train_loss / len(train_loader))
+        train_loss_array.append(train_loss / num_batch)
         if self.scheduler is not None:
             torch.save({
                 'current_epoch': epoch + 1,
@@ -113,24 +120,30 @@ class BERTTrainer(Trainer):
         total = 0
         with torch.no_grad():
             pbar = tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation")
-            for batch_idx, (src, decoder_input, targets) in pbar:
-                src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
+            for batch_idx, (src, targets, pred_list) in pbar:
+                src, targets = src.to(self.device), targets.to(self.device)
                 try:
-                    outputs = self.model(src, decoder_input)
+                    outputs = self.model(src)
                     if torch.isnan(outputs).any():
                         raise ValueError("NaN in model output")
-                    outputs = outputs.view(-1, outputs.size(-1))
-                    targets = targets.view(-1)
-                    loss = self.criterion(outputs, targets)
+
+                    loss_mlm = 0
+                    for b in range(self.batch_size):
+                        masked_idx = pred_list[b]
+                        masked_logits = outputs[b, masked_idx, :]
+                        masked_targets = targets[b, masked_idx]
+                        loss_mlm += self.criterion(masked_logits, masked_targets)
+                        predicted = masked_logits.argmax(dim=-1)
+                        correct += (predicted == masked_targets).sum().float()
+                        total += masked_targets.sum().float()
+
+                    loss = loss_mlm / self.batch_size
                     if torch.isnan(loss).any():
                         raise ValueError("NaN in loss")
                 except ValueError as err:
                     print(f"[Warning] {err} at step {batch_idx}.")
                     continue  # Skip this batch
                 test_loss += loss.item()
-                predicted = outputs.argmax(dim=-1)
-                correct += (predicted == targets).sum().item()
-                total += targets.numel()
 
                 pbar.set_postfix(loss=f"{test_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
         valid_acc.append(correct / total)

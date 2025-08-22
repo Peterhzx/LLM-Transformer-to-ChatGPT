@@ -29,6 +29,7 @@ class TransformerTrainer(Trainer):
         # torch.autograd.set_detect_anomaly(True)
         time.sleep(0.5)
         train_loss = 0
+        num_batch = 0
         correct = 0
         total = 0
         train_iter = iter(train_loader)
@@ -88,9 +89,10 @@ class TransformerTrainer(Trainer):
                         'current_step': batch_idx + 1,
                     }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
 
-            pbar.set_postfix(loss=f"{train_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
+            num_batch += 1
+            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}")
         train_acc.append(correct / total)
-        train_loss_array.append(train_loss / len(train_loader))
+        train_loss_array.append(train_loss / num_batch)
         if self.scheduler is not None:
             torch.save({
                 'current_epoch': epoch + 1,

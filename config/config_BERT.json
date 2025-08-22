@@ -11,7 +11,7 @@
     "src_tokenizer_regex": "\\d+(?:[\\.,]\\d+)* | \\w+(?:[-']\\w+)* | \\S\\S+ | \\S",
     "tgt_tokenizer_regex": "\\d+(?:[\\.,]\\d+)* | [a-zA-ZàâäéèêëîïôöùûüçÀÂÄÉÈÊËÎÏÔÖÙÛÜÇ]['’] | [a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+(?:[-'’][a-zA-ZÀÂÆÇÈÉÊËÎÏÔÙÛÜàâæçèéêëîïôùûüÿŒœŸ]+)* | \\S\\S+ | \\S",
     "vocab_size": 30000,
-    "special_tokens": ["<PAD>", "<MASK>", "<CLS>", "<SEP>", "<IsNext>", "<NotNext>"],
+    "special_tokens": ["<PAD>", "<MASK>", "<CLS>", "<SEP>"],
     "sample_size": 0.2
   },
   "Dataloader": {
@@ -29,6 +29,12 @@
       "params": {
         "max_seq_len": 100,
         "batch_size": 32,
+        "random_token_start": 5,
+        "random_token_end": 29999,
+        "pad_token_id": 0,
+        "mask_token_id": 1,
+        "cls_token_id": 2,
+        "sep_token_id": 3,
         "train_val_test_split": [0.7, 0.15, 0.15]
       }
     },
@@ -42,7 +48,7 @@
       "description": "when value=true, ckpt_dir is required. an example of ckpt_dir: ./checkpoints/transformer/<folder_name>/"
     },
     "model": {
-      "type": "Transformer",
+      "type": "BERT",
       "params": {
         "embed_dim": 512,
         "num_layers": 6,

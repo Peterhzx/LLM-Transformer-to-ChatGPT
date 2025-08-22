@@ -43,7 +43,7 @@ class TransformerDataset(Dataset):
 
 
 class BERTDataset(Dataset):
-    def __init__(self, df, max_len, random_token_start, random_token_end, pad_token_id=0, mask_token_id=1, cls_token_id=2, sep_token_id=3, isnext_token_id=4, notnext_token_id=5):
+    def __init__(self, df, max_len, random_token_start, random_token_end, pad_token_id=0, mask_token_id=1, cls_token_id=2, sep_token_id=3):
         super(BERTDataset, self).__init__()
         self.df = df
         self.max_len = max_len
@@ -53,8 +53,6 @@ class BERTDataset(Dataset):
         self.mask_token_id = mask_token_id
         self.cls_token_id = cls_token_id
         self.sep_token_id = sep_token_id
-        self.isnext_token_id = isnext_token_id
-        self.notnext_token_id = notnext_token_id
 
     def __len__(self):
         return len(self.df)
@@ -63,11 +61,11 @@ class BERTDataset(Dataset):
         a_tokenized = self.df.iloc[idx, 0]
         if idx % 2 == 0:
             b_tokenized = self.df.iloc[idx, 1]
-            isnext_token = self.isnext_token_id
+            isnext_token = 0
         else:
             i = random.randint(0, len(self.df)-2)
             b_tokenized = self.df.iloc[i + 1 if i >= idx else i, 1]
-            isnext_token = self.notnext_token_id
+            isnext_token = 1
 
         # create tgt seq
         tgt_tokenized = [isnext_token] + a_tokenized + [self.sep_token_id] + b_tokenized
