@@ -2,6 +2,7 @@ import time
 from itertools import islice
 
 import torch
+from torch import nn
 from tqdm import tqdm
 
 from trainer import Trainer
@@ -23,6 +24,7 @@ class BERTTrainer(Trainer):
         else:
             self.scheduler = None
         self._init_criterion(hyperparams["criterion"])
+        self.criterion_nsp = nn.CrossEntropyLoss()
 
     def _train(self, epoch, current_step, train_loader, train_acc, train_loss_array):
         print('\nEpoch: %d' % epoch)
@@ -42,21 +44,25 @@ class BERTTrainer(Trainer):
             src, targets = src.to(self.device), targets.to(self.device)
             self.optimizer.zero_grad()
             try:
-                outputs = self.model(src)
-                if torch.isnan(outputs).any():
+                mlm_logits, nsp_logits = self.model(src)
+                if torch.isnan(mlm_logits).any() or torch.isnan(nsp_logits).any():
                     raise ValueError("NaN in model output")
 
-                loss_mlm = 0
+                mlm_loss = 0
                 for b in range(self.batch_size):
                     masked_idx = pred_list[b]
-                    masked_logits = outputs[b, masked_idx, :]
+                    masked_logits = mlm_logits[b, masked_idx, :]
                     masked_targets = targets[b, masked_idx]
-                    loss_mlm += self.criterion(masked_logits, masked_targets)
+                    mlm_loss += self.criterion(masked_logits, masked_targets)
                     predicted = masked_logits.argmax(dim=-1)
                     correct += (predicted == masked_targets).sum().float()
                     total += masked_targets.sum().float()
 
-                loss = loss_mlm / self.batch_size
+                mlm_loss = mlm_loss / self.batch_size
+
+                nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
+
+                loss = mlm_loss + nsp_loss
                 if torch.isnan(loss):
                     raise ValueError("NaN in loss")
                 loss.backward()
@@ -123,21 +129,25 @@ class BERTTrainer(Trainer):
             for batch_idx, (src, targets, pred_list) in pbar:
                 src, targets = src.to(self.device), targets.to(self.device)
                 try:
-                    outputs = self.model(src)
-                    if torch.isnan(outputs).any():
+                    mlm_logits, nsp_logits = self.model(src)
+                    if torch.isnan(mlm_logits).any() or torch.isnan(nsp_logits).any():
                         raise ValueError("NaN in model output")
 
-                    loss_mlm = 0
+                    mlm_loss = 0
                     for b in range(self.batch_size):
                         masked_idx = pred_list[b]
-                        masked_logits = outputs[b, masked_idx, :]
+                        masked_logits = mlm_logits[b, masked_idx, :]
                         masked_targets = targets[b, masked_idx]
-                        loss_mlm += self.criterion(masked_logits, masked_targets)
+                        mlm_loss += self.criterion(masked_logits, masked_targets)
                         predicted = masked_logits.argmax(dim=-1)
                         correct += (predicted == masked_targets).sum().float()
                         total += masked_targets.sum().float()
 
-                    loss = loss_mlm / self.batch_size
+                    mlm_loss = mlm_loss / self.batch_size
+
+                    nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
+
+                    loss = mlm_loss + nsp_loss
                     if torch.isnan(loss).any():
                         raise ValueError("NaN in loss")
                 except ValueError as err:

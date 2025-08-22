@@ -22,6 +22,7 @@
   },
   "Trainer": {
     "$comment": "config of Trainer. model, num_epoch are required.",
+    "type": "TransformerTrainer",
     "num_epoch": 10,
     "dataloader": {
       "type": "get_transformer_dataloader",
