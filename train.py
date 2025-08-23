@@ -3,7 +3,7 @@ import sys
 
 from src.utils import NLPModelPipeline
 
-if __name__ == '__main__':  # .\config\config.json
+if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Usage: python train.py <config_path>")
         sys.exit(1)

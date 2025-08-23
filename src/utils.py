@@ -68,6 +68,6 @@ class NLPModelPipeline:
     def run_pipline(self):
         self._load_data()
         self._prepare_tokenizer()
-        self._tokenize_data()
-        self._train_and_save_model()
-        self._eval_model()
+        # self._tokenize_data()
+        # self._train_and_save_model()
+        # self._eval_model()
