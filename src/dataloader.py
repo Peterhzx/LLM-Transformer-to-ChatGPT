@@ -19,7 +19,7 @@ class Dataloader:
         elif df_path.endswith(".json"):
             self.df = pd.read_json(df_path, nrows=nrows)
         elif df_path.endswith(".parquet"):
-            self.df = pd.read_parquet(df_path, nrows=nrows, engine='pyarrow')
+            self.df = pd.read_parquet(df_path, engine='pyarrow')
         else:
             raise ValueError("file formate should be: .csv .xlsx .json .parquet")
 

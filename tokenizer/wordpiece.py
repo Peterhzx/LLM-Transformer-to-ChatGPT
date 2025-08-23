@@ -1,5 +1,6 @@
 import math
 import re
+import sys
 import time
 
 import pandas as pd
@@ -27,10 +28,10 @@ class WordPiece(Tokenizer):
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
         all_chars = config["all_chars"]
         special_tokens = config["special_tokens"]
-        print("Preprocessing data for training tokenizer...")
+        print("Preprocessing data for training tokenizer")
         time.sleep(0.5)
         self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, special_tokens, all_chars)
-        print("Training tokenizer...")
+        print("Training tokenizer")
         time.sleep(0.5)
         self._train_loop(vocab_size)
 
@@ -180,6 +181,7 @@ class WordPiece(Tokenizer):
         location = loc_list[0]
         left_part = self.tokenized_words[word][location]
         right_part = self.tokenized_words[word][location + 1]
+        self.tokens_count[new_token] = self.byte_pair_count[new_token]
         self.tokens_count[left_part] -= self.byte_pair_count[new_token]
         self.tokens_count[right_part] -= self.byte_pair_count[new_token]
         self.total_count -= self.byte_pair_count[new_token]
