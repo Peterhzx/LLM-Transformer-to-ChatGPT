@@ -139,10 +139,11 @@ class WordPiece(Tokenizer):
         return df_word_level_tokenized
 
     def _train_loop(self, vocab_size):
-        for _ in tqdm(range(int((vocab_size - len(self.tokens))/2)), desc="Training", total=int((vocab_size - len(self.tokens))/2)):
-            self._merge_byte_pair()
+        with tqdm(total=vocab_size - len(self.tokens), desc="Training") as pbar:
+            while len(self.tokens) < vocab_size:
+                self._merge_byte_pair(vocab_size, pbar)
 
-    def _merge_byte_pair(self):
+    def _merge_byte_pair(self, vocab_size, pbar):
         # compute likelihood
         total_ll = self.log_likelihood(self.tokens_count, self.total_count)
         ll_gain = {}
@@ -170,11 +171,16 @@ class WordPiece(Tokenizer):
         index = len(self.tokens)
         self.tokens[new_token] = index
         self.reversed_tokens[index] = new_token
+        print(f"add {new_token}")
+        pbar.update(1)
 
-        index += 1
-        sub_word_token = "##" + new_token
-        self.tokens[sub_word_token] = index
-        self.reversed_tokens[index] = sub_word_token
+        if not new_token.startswith("<SOW>") and len(self.tokens) < vocab_size:
+            index += 1
+            sub_word_token = "##" + new_token
+            self.tokens[sub_word_token] = index
+            self.reversed_tokens[index] = sub_word_token
+            print(f"add {sub_word_token}")
+            pbar.update(1)
 
         # update tokens_count and total_count
         word, loc_list = next(iter(self.byte_pair_location[new_token].items()))
