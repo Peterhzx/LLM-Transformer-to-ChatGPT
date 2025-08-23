@@ -27,7 +27,7 @@ class WordPiece(Tokenizer):
         src_tokenizer_regex = config["src_tokenizer_regex"]
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
         all_chars = config["all_chars"]
-        special_tokens = config["special_tokens"]
+        special_tokens = config.get("special_tokens", [])
         print("Preprocessing data for training tokenizer")
         time.sleep(0.5)
         self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, special_tokens, all_chars)

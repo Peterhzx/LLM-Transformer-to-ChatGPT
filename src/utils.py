@@ -43,7 +43,7 @@ class NLPModelPipeline:
         if self.params["Tokenizer"]["load"]["value"]:
             self.tokenizer.load(self.params["Tokenizer"]["load"]["dir"])
         else:
-            data_df = self.dataloader.get_df(self.params["Tokenizer"]["sample_size"])
+            data_df = self.dataloader.get_df(self.params["Tokenizer"].get("sample_size", 0.1))
             self.tokenizer.train(data_df, self.params["Tokenizer"])
             self.tokenizer.save(self.params["Tokenizer"]["load"]["dir"])
 
@@ -67,7 +67,13 @@ class NLPModelPipeline:
 
     def run_pipline(self):
         self._load_data()
-        self._prepare_tokenizer()
-        # self._tokenize_data()
-        # self._train_and_save_model()
-        # self._eval_model()
+        try:
+            self.params["Tokenizer"]
+            self._prepare_tokenizer()
+            self._tokenize_data()
+            self._train_and_save_model()
+            self._eval_model()
+        except KeyError:
+            print("Training without tokenizer")
+            self._train_and_save_model()
+            self._eval_model()

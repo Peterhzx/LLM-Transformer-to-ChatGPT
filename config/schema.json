@@ -6,8 +6,26 @@
   "properties": {
     "Tokenizer": {
       "type": "object",
-      "required": ["src_tokenizer_regex", "tgt_tokenizer_regex", "vocab_size"],
+      "required": ["type", "load", "src_tokenizer_regex", "tgt_tokenizer_regex", "vocab_size", "all_chars"],
       "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["WordPiece", "BPE"],
+          "description": "Word level parser used for tokenizer training and tokenizing"
+        },
+        "load": {
+          "type": "object",
+          "required": ["value", "dir"],
+          "properties": {
+            "value": {
+              "type": "boolean"
+            },
+            "dir": {
+              "type": "string",
+              "pattern": "^(?:[a-zA-Z]:)?(?:[\\/]?(?:.{1,2}|[^\\/:*?\"<>|\n]+)(?:[\\/](?:.{1,2}|[^\\/:*?\"<>|\n]+))*)?[^\\/:*?\"<>|\n]+"
+            }
+          }
+        },
         "src_tokenizer_regex": {
           "type": "string",
           "format": "regex",
@@ -79,6 +97,10 @@
           "description": "Number of rows to read from local file"
         }
       }
+    },
+    "Trainer":{
+      "type": "object",
+      "required": ["type", "num_epoch", "dataloader", "model", "optimizer", "criterion", ]
     }
   }
 }
