@@ -53,7 +53,6 @@
         "num_layers": 6,
         "num_heads": 8,
         "feedforward_dim": 2048,
-        "num_tokens": 30000,
         "pad_token_id": 0
       }
     },

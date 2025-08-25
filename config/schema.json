@@ -100,7 +100,7 @@
     },
     "Trainer":{
       "type": "object",
-      "required": ["type", "num_epoch", "dataloader", "model", "optimizer", "criterion", ]
+      "required": ["type", "num_epoch", "dataloader", "model", "optimizer", "criterion"]
     }
   }
 }

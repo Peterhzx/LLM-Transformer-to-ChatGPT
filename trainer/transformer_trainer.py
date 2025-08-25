@@ -8,14 +8,14 @@ from trainer import Trainer
 
 
 class TransformerTrainer(Trainer):
-    def __init__(self, hyperparams):
+    def __init__(self, hyperparams, num_tokens):
         super().__init__()
         self.pad_token_id = hyperparams["model"]["params"]["pad_token_id"]
         self.num_epoch = hyperparams["num_epoch"]
         self.save_period = hyperparams["save_period"]["value"]
         self._check_cuda_availability()
         self._init_ckpt_dir(hyperparams)
-        self._init_model(hyperparams["model"])
+        self._init_model(hyperparams["model"], num_tokens)
         self._init_optimizer(hyperparams["optimizer"])
         if "lr_scheduler" in hyperparams:
             self._init_lr_scheduler(hyperparams["lr_scheduler"])

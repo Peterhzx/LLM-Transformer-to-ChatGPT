@@ -72,3 +72,6 @@ class Tokenizer(ABC):
             with open(f"{path}/reversed_tokens.json", "r") as f:
                 self.reversed_tokens = json.load(f)
             print(f"{self._vocab_fingerprint(self.tokens)} vocab loaded from {path}")
+
+    def __len__(self):
+        return len(self.tokens)

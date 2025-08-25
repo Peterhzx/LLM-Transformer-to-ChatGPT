@@ -39,9 +39,9 @@ class Trainer(ABC):
                     self.ckpt_dir = r"./checkpoints/" + model_type + r"/" + now + "/"
                     os.mkdir(self.ckpt_dir)
 
-    def _init_model(self, hyperparams):
+    def _init_model(self, hyperparams, num_tokens):
         model_type = getattr(models, hyperparams["type"])
-        self.model = model_type(**hyperparams["params"])
+        self.model = model_type(num_tokens=num_tokens, **hyperparams["params"])
         self.model.apply(self._init_weights)
         self.model.to(self.device)
 
