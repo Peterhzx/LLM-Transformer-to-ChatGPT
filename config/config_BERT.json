@@ -11,7 +11,7 @@
     "src_tokenizer_regex": "\\d+(?:[\\.,]\\d+)* | \\w+(?:[-']\\w+)* | \\S\\S+ | \\S",
     "tgt_tokenizer_regex": "\\d+(?:[\\.,]\\d+)* | \\w+(?:[-']\\w+)* | \\S\\S+ | \\S",
     "vocab_size": 30000,
-    "special_tokens": ["<PAD>", "<MASK>", "<CLS>", "<SEP>"],
+    "special_tokens": ["<PAD>", "<MASK>", "<CLS>", "<SEP>", "<UNK>"],
     "sample_size": 0.2
   },
   "Dataloader": {

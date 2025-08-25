@@ -1,6 +1,5 @@
 import math
 import re
-import sys
 import time
 
 import pandas as pd
@@ -54,10 +53,6 @@ class WordPiece(Tokenizer):
             self.reversed_tokens[i] = special_token_list[i]
 
         index = len(self.tokens)
-        self.tokens["<SOW>"] = index
-        self.reversed_tokens[index] = "<SOW>"
-
-        index = len(self.tokens)
         for char in all_chars:
             self.tokens[char] = index
             self.reversed_tokens[index] = char
@@ -73,9 +68,7 @@ class WordPiece(Tokenizer):
                 for word in sentence:
                     if word not in self.words_count:
                         self.words_count[word] = 1
-                        char_list = ["<SOW>"]
-                        char_list += list(word)
-                        self.tokenized_words[word] = char_list
+                        self.tokenized_words[word] = list(word)
                     else:
                         self.words_count[word] += 1
 
@@ -117,6 +110,24 @@ class WordPiece(Tokenizer):
             ll += c * math.log(p)
         return ll
 
+    def delta_ll(self, new_token_count, old_left_part_count, old_right_part_count):
+        def term(c, total):
+            return 0.0 if c <= 0 else c * math.log(c / total)
+
+        old_total = self.total_count
+        new_total = old_total - new_token_count
+
+        # new contributions
+        ll = term(new_token_count, new_total)
+        ll += term(old_left_part_count - new_token_count, new_total)
+        ll += term(old_right_part_count - new_token_count, new_total)
+
+        # subtract old contributions
+        ll -= term(old_left_part_count, old_total)
+        ll -= term(old_right_part_count, old_total)
+
+        return ll
+
     def _df_splitting(self, df, training, src_tokenizer_regex, tgt_tokenizer_regex):
         if training:
             src_tokenizer_regex = src_tokenizer_regex.split("|")
@@ -139,35 +150,27 @@ class WordPiece(Tokenizer):
         return df_word_level_tokenized
 
     def _train_loop(self, vocab_size):
-        total_ll = self.log_likelihood(self.tokens_count, self.total_count)
         with tqdm(total=vocab_size - len(self.tokens), desc="Training") as pbar:
             while len(self.tokens) < vocab_size:
-                total_ll = self._merge_byte_pair(vocab_size, pbar, total_ll)
+                self._merge_byte_pair(vocab_size, pbar)
+                pbar.set_postfix(log_likelihood=self.log_likelihood(self.tokens_count, self.total_count))
 
-    def _merge_byte_pair(self, vocab_size, pbar, total_ll):
-        # compute likelihood
+    def _merge_byte_pair(self, vocab_size, pbar):
+        # compute delta likelihood
         ll_gain = {}
 
         for k, v in self.byte_pair_count.items():
-            new_tokens_count = self.tokens_count.copy()
-            new_tokens_count[k] = v
-
             word, loc_list = next(iter(self.byte_pair_location[k].items()))
             location = loc_list[0]
             left_part = self.tokenized_words[word][location]
             right_part = self.tokenized_words[word][location+1]
 
-            new_tokens_count[left_part] -= v
-            new_tokens_count[right_part] -= v
-            if new_tokens_count[left_part] <= 0:
-                del new_tokens_count[left_part]
-            if new_tokens_count[right_part] <= 0:
-                del new_tokens_count[right_part]
+            old_left_part_count = self.tokens_count[left_part]
+            old_right_part_count = self.tokens_count[right_part]
 
-            ll_gain[k] = self.log_likelihood(new_tokens_count, self.total_count - v) - total_ll
+            ll_gain[k] = self.delta_ll(v, old_left_part_count, old_right_part_count)
 
         new_token = max(ll_gain, key=ll_gain.get)
-        total_ll += ll_gain[new_token]
 
         index = len(self.tokens)
         self.tokens[new_token] = index
@@ -223,7 +226,6 @@ class WordPiece(Tokenizer):
                     else:
                         self.byte_pair_location[byte_pair][k].append(i)
         del self.byte_pair_location[new_token]
-        return total_ll
 
     def _tokenize_df(self, df, src_tokenizer_regex, tgt_tokenizer_regex):
         tokenized_df = self._df_splitting(df, False, src_tokenizer_regex, tgt_tokenizer_regex)
