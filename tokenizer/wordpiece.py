@@ -33,6 +33,7 @@ class WordPiece(Tokenizer):
         print("Training tokenizer")
         time.sleep(0.5)
         self._train_loop(vocab_size - len(special_tokens))
+        print("Postprocessing")
         self._postprocess(special_tokens)
 
     def tokenize(self, df, config, **kwargs):
@@ -156,16 +157,19 @@ class WordPiece(Tokenizer):
         # compute delta likelihood
         ll_gain = {}
 
-        for k, v in self.byte_pair_count.items():
-            word, loc_list = next(iter(self.byte_pair_location[k].items()))
-            location = loc_list[0]
-            left_part = self.tokenized_words[word][location]
-            right_part = self.tokenized_words[word][location+1]
+        try:
+            for k, v in self.byte_pair_count.items():
+                word, loc_list = next(iter(self.byte_pair_location[k].items()))
+                location = loc_list[0]
+                left_part = self.tokenized_words[word][location]
+                right_part = self.tokenized_words[word][location+1]
 
-            old_left_part_count = self.tokens_count[left_part]
-            old_right_part_count = self.tokens_count[right_part]
+                old_left_part_count = self.tokens_count[left_part]
+                old_right_part_count = self.tokens_count[right_part]
 
-            ll_gain[k] = self._delta_ll(v, old_left_part_count, old_right_part_count)
+                ll_gain[k] = self._delta_ll(v, old_left_part_count, old_right_part_count)
+        except KeyError as e:
+            print(f"KeyError {e} in compute delta likelihood")
 
         new_token = max(ll_gain, key=ll_gain.get)
 
@@ -173,46 +177,71 @@ class WordPiece(Tokenizer):
         self.tokens[new_token] = index
 
         # update tokens_count and total_count
-        word, loc_list = next(iter(self.byte_pair_location[new_token].items()))
-        location = loc_list[0]
-        left_part = self.tokenized_words[word][location]
-        right_part = self.tokenized_words[word][location + 1]
-        self.tokens_count[new_token] = self.byte_pair_count[new_token]
-        self.tokens_count[left_part] -= self.byte_pair_count[new_token]
-        self.tokens_count[right_part] -= self.byte_pair_count[new_token]
-        self.total_count -= self.byte_pair_count[new_token]
-        if self.tokens_count[left_part] <= 0:
-            del self.tokens_count[left_part]
-        if self.tokens_count[right_part] <= 0:
-            del self.tokens_count[right_part]
+        try:
+            word, loc_list = next(iter(self.byte_pair_location[new_token].items()))
+            location = loc_list[0]
+            left_part = self.tokenized_words[word][location]
+            right_part = self.tokenized_words[word][location + 1]
+            self.tokens_count[new_token] = self.byte_pair_count[new_token]
+            for part in (left_part, right_part):
+                if part in self.tokens_count:
+                    self.tokens_count[part] -= self.byte_pair_count[new_token]
+                    if self.tokens_count[part] <= 0:
+                        del self.tokens_count[part]
+            self.total_count -= self.byte_pair_count[new_token]
+        except KeyError as e:
+            print(f"KeyError {e} in update tokens_count and total_count")
+
+            """
+            Training: 27 % |██▋ | 8047 / 29886[44:23 < 2:29: 44, 2.43
+            it / s, log_likelihood = -8.88e+8]KeyError
+            '1234567890' in update
+            tokens_count and total_count
+            Training: 87 % |████████▋ | 25857 / 29886[2:57:30 < 30: 16, 2.22
+            it / s, log_likelihood = -8.87e+8]KeyError
+            ',0.8' in update
+            tokens_count and total_count
+            Training: 87 % |████████▋ | 25859 / 29886[2:57:31 < 30: 16, 2.22
+            it / s, log_likelihood = -8.87e+8]KeyError
+            '.4.4.7' in update
+            tokens_count and total_count
+            Training: 100 % |██████████ | 29886 / 29886[3:27:40 < 00: 00, 2.40
+            it / s, log_likelihood = -8.87e+8]
+            """
 
         # update tokenized_words, byte_pair_location and byte_pair_count
         for k, v in list(self.byte_pair_location[new_token].items()):
 
-            word_list = self.tokenized_words[k]
-            self.tokenized_words[k] = self._tokenize_word(word_list, True)
+            try:
+                word_list = self.tokenized_words[k]
+                self.tokenized_words[k] = self._tokenize_word(word_list, True)
 
             # delete previous count and location
-            for i in range(len(word_list) - 1):
-                byte_pair = word_list[i] + word_list[i + 1]
-                if k in self.byte_pair_location[byte_pair]:
-                    self.byte_pair_count[byte_pair] -= self.words_count[k] * len(self.byte_pair_location[byte_pair][k])
-                    if self.byte_pair_count[byte_pair] == 0:
-                        del self.byte_pair_count[byte_pair]
-                    del self.byte_pair_location[byte_pair][k]
+                for i in range(len(word_list) - 1):
+                    byte_pair = word_list[i] + word_list[i + 1]
+                    if k in self.byte_pair_location[byte_pair]:
+                        self.byte_pair_count[byte_pair] -= self.words_count[k] * len(self.byte_pair_location[byte_pair][k])
+                        if self.byte_pair_count[byte_pair] == 0:
+                            del self.byte_pair_count[byte_pair]
+                        del self.byte_pair_location[byte_pair][k]
+            except KeyError as e:
+                print(f"KeyError {e} in update tokenized_words")
 
             # add new count and location
-            for i in range(len(self.tokenized_words[k]) - 1):
-                byte_pair = self.tokenized_words[k][i] + self.tokenized_words[k][i + 1]
-                if byte_pair not in self.byte_pair_count:
-                    self.byte_pair_count[byte_pair] = self.words_count[k]
-                    self.byte_pair_location[byte_pair] = {k: [i]}
-                else:
-                    self.byte_pair_count[byte_pair] += self.words_count[k]
-                    if k not in self.byte_pair_location[byte_pair]:
-                        self.byte_pair_location[byte_pair][k] = [i]
+            try:
+                for i in range(len(self.tokenized_words[k]) - 1):
+                    byte_pair = self.tokenized_words[k][i] + self.tokenized_words[k][i + 1]
+                    if byte_pair not in self.byte_pair_count:
+                        self.byte_pair_count[byte_pair] = self.words_count[k]
+                        self.byte_pair_location[byte_pair] = {k: [i]}
                     else:
-                        self.byte_pair_location[byte_pair][k].append(i)
+                        self.byte_pair_count[byte_pair] += self.words_count[k]
+                        if k not in self.byte_pair_location[byte_pair]:
+                            self.byte_pair_location[byte_pair][k] = [i]
+                        else:
+                            self.byte_pair_location[byte_pair][k].append(i)
+            except KeyError as e:
+                print(f"KeyError {e} in add new count and location")
         del self.byte_pair_location[new_token]
 
     def _postprocess(self, special_tokens):
