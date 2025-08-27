@@ -11,7 +11,7 @@ from tokenizer import Tokenizer
 
 class BPE(Tokenizer):
     def __init__(self):
-        super(BPE).__init__()
+        super(BPE, self).__init__()
         self.tokens = {}  # {"word": int}
         self.reversed_tokens = {}  # {int: "word"}
         self.words_count = {}  # {"word": int}

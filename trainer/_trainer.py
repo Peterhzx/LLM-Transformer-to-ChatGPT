@@ -11,7 +11,7 @@ import models
 
 class Trainer(ABC):
     def __init__(self):
-        super().__init__()
+        super(ABC, self).__init__()
         self.pad_token_id = None
         self.num_epoch = None
         self.save_period = None

@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 class Tokenizer(ABC):
 
     def __init__(self):
+        super(ABC, self).__init__()
         self.reversed_tokens = None
         self.tokens = None
 

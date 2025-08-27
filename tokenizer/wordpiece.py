@@ -10,7 +10,7 @@ from tokenizer import Tokenizer
 
 class WordPiece(Tokenizer):
     def __init__(self):
-        super().__init__()
+        super(WordPiece, self).__init__()
         self.tokens = {}  # {"word": int}
         self.reversed_tokens = {}  # {int: "word"}
         self.tokens_count = {}  # {"word": int}

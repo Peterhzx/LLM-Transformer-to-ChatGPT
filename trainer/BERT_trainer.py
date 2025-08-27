@@ -10,7 +10,7 @@ from trainer import Trainer
 
 class BERTTrainer(Trainer):
     def __init__(self, hyperparams, num_tokens):
-        super().__init__()
+        super(BERTTrainer, self).__init__()
         self.pad_token_id = hyperparams["model"]["params"]["pad_token_id"]
         self.num_epoch = hyperparams["num_epoch"]
         self.save_period = hyperparams["save_period"]["value"]
