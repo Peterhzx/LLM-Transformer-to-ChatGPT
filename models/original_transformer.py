@@ -80,7 +80,8 @@ class EncoderLayer(nn.Module):
     def __init__(self, embed_dim, num_heads, feedforward_dim):
         super(EncoderLayer, self).__init__()
         self.multi_head = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, dropout=0.1, batch_first=True)
-        self.dropout = nn.Dropout(0.1)
+        self.dropout1 = nn.Dropout(0.1)
+        self.dropout2 = nn.Dropout(0.1)
         self.norm_1 = nn.LayerNorm(embed_dim)
         self.feedforward_1 = nn.Linear(embed_dim, feedforward_dim)
         self.feedforward_2 = nn.Linear(feedforward_dim, embed_dim)
@@ -100,14 +101,13 @@ class EncoderLayer(nn.Module):
             print("NaN in encoder attention output")
             # Log magnitude statistics
             print(f"Max: {out.max().item()}, Min: {out.min().item()}")
-        out = self.dropout(out)
         out = out + x
         MHA_out = self.norm_1(out)
         out = self.feedforward_1(MHA_out)
         out = F.relu(out)
-        out = self.dropout(out)
+        out = self.dropout1(out)
         out = self.feedforward_2(out)
-        out = self.dropout(out)
+        out = self.dropout2(out)
         out = out + MHA_out
         out = self.norm_2(out)
         return out
@@ -117,7 +117,8 @@ class DecoderLayer(nn.Module):
     def __init__(self, embed_dim, num_heads, feedforward_dim):
         super(DecoderLayer, self).__init__()
         self.self_attn = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, dropout=0.1, batch_first=True)
-        self.dropout = nn.Dropout(0.1)
+        self.dropout1 = nn.Dropout(0.1)
+        self.dropout2 = nn.Dropout(0.1)
         self.norm_1 = nn.LayerNorm(embed_dim)
         self.cross_attn = nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, dropout=0.1, batch_first=True)
         self.norm_2 = nn.LayerNorm(embed_dim)
@@ -136,7 +137,6 @@ class DecoderLayer(nn.Module):
             print("NaN in decoder self attention output")
             # Log magnitude statistics
             print(f"Max: {out.max().item()}, Min: {out.min().item()}")
-        out = self.dropout(out)
         out = out + decoder_input
         MMHA_out = self.norm_1(out)
         out, _ = self.cross_attn(MMHA_out, encoder_output, encoder_output, key_padding_mask=src_key_padding_mask)
@@ -144,14 +144,13 @@ class DecoderLayer(nn.Module):
             print("NaN in decoder cross attention output")
             # Log magnitude statistics
             print(f"Max: {out.max().item()}, Min: {out.min().item()}")
-        out = self.dropout(out)
         out = out + MMHA_out
         MHA_out = self.norm_2(out)
         out = self.feedforward_1(MHA_out)
         out = F.relu(out)
-        out = self.dropout(out)
+        out = self.dropout1(out)
         out = self.feedforward_2(out)
-        out = self.dropout(out)
+        out = self.dropout2(out)
         out = out + MHA_out
         out = self.norm_3(out)
         return out
