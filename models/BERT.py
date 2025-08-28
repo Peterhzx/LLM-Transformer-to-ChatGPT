@@ -7,16 +7,16 @@ import torch.nn.functional as F
 
 
 class BERT(nn.Module):
-    def __init__(self, num_tokens, emb_dim, pad_token_id, num_layer, num_heads, dropout, feedforward_dim=2048, max_possible_seq_len=2048, **kwargs):
+    def __init__(self, num_tokens, embed_dim, pad_token_id, num_layers, num_heads, dropout, feedforward_dim=2048, max_possible_seq_len=2048, **kwargs):
         super(BERT, self).__init__()
         if kwargs:
             print(f"Ignored unused arguments: {', '.join(kwargs.keys())}")
         self.padding_idx = pad_token_id
-        self.register_buffer('positional_encoding', self.build_positional_encoding(max_possible_seq_len, emb_dim))
-        self.embeddings = nn.Embedding(num_tokens, emb_dim, padding_idx=pad_token_id)
+        self.register_buffer('positional_encoding', self.build_positional_encoding(max_possible_seq_len, embed_dim))
+        self.embeddings = nn.Embedding(num_tokens, embed_dim, padding_idx=pad_token_id)
         self.dropout = nn.Dropout(dropout)
-        self.encoder = nn.ModuleList([EncoderLayer(num_heads, emb_dim, feedforward_dim, dropout) for _ in range(num_layer)])
-        self.nsp_linear = nn.Linear(emb_dim, 2)
+        self.encoder = nn.ModuleList([EncoderLayer(num_heads, embed_dim, feedforward_dim, dropout) for _ in range(num_layers)])
+        self.nsp_linear = nn.Linear(embed_dim, 2)
 
     def forward(self, x, key_padding_mask=None):
         if key_padding_mask is None:

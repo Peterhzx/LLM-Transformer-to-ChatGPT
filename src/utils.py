@@ -67,13 +67,13 @@ class NLPModelPipeline:
 
     def run_pipline(self):
         self._load_data()
-        # try:
-        self.params["Tokenizer"]
-        self._prepare_tokenizer()
-        self._tokenize_data()
-            # self._train_and_save_model()
-            # self._eval_model()
-        # except KeyError:
-            # print("Training without tokenizer")
-            # self._train_and_save_model()
-            # self._eval_model()
+        try:
+            self.params["Tokenizer"]
+            self._prepare_tokenizer()
+            self._tokenize_data()
+            self._train_and_save_model()
+            self._eval_model()
+        except KeyError:
+            print("Training without tokenizer")
+            self._train_and_save_model()
+            self._eval_model()
