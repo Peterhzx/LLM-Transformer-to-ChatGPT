@@ -32,7 +32,11 @@ class BERTTrainer(Trainer):
         # torch.autograd.set_detect_anomaly(True)
         time.sleep(0.5)
         train_loss = 0
+        mlm_train_loss = 0
+        nsp_train_loss = 0
         num_batch = 0
+        nsp_correct = 0
+        nsp_total = 0
         correct = 0
         total = 0
         train_iter = iter(train_loader)
@@ -50,7 +54,7 @@ class BERTTrainer(Trainer):
 
                 mlm_loss = torch.tensor(0.0, device=self.device)
                 pred_list = pred_tensor.tolist()
-                for b in range(self.batch_size):
+                for b in range(src.size(0)):
                     masked_idx = pred_list[b]
                     masked_idx = [int(x) for x in masked_idx if int(x) != self.pad_token_id]
                     masked_logits = mlm_logits[b, masked_idx, :]
@@ -62,9 +66,14 @@ class BERTTrainer(Trainer):
                         raise ValueError(f"NaN in mlm_loss in batch {b}. \nmasked_idx: {masked_idx}\nsrc: {unmasked_src}\ntargets: {unmasked_targets}")
                     predicted = masked_logits.argmax(dim=-1)
                     correct += (predicted == masked_targets).sum().float()
-                    total += masked_targets.sum().float()
+                    total += len(masked_targets).float()
 
                 mlm_loss = mlm_loss / self.batch_size
+
+                nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
+                nsp_targets = targets[:, 0].view(-1)
+                nsp_correct += (nsp_predicted == nsp_targets).sum().float()
+                nsp_total += len(nsp_targets).float()
 
                 nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
 
@@ -93,6 +102,8 @@ class BERTTrainer(Trainer):
                     f.write(f"{batch_idx}")
                 continue  # Skip this batch
             train_loss += loss.item()
+            mlm_train_loss += mlm_loss.item()
+            nsp_train_loss += nsp_loss.item()
             if (batch_idx + 1) % self.save_period == 0:
                 if self.scheduler is not None:
                     torch.save({
@@ -111,7 +122,7 @@ class BERTTrainer(Trainer):
                     }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
 
             num_batch += 1
-            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}")
+            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", mlm_loss=f"{mlm_train_loss / num_batch:.4f}", nsp_loss=f"{nsp_train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
         train_acc.append(correct / total)
         train_loss_array.append(train_loss / num_batch)
         if self.scheduler is not None:
@@ -131,6 +142,11 @@ class BERTTrainer(Trainer):
     def _val(self, val_loader, valid_acc, valid_loss_array):
         self.model.eval()
         test_loss = 0
+        mlm_test_loss = 0
+        nsp_test_loss = 0
+        num_batch = 0
+        nsp_correct = 0
+        nsp_total = 0
         correct = 0
         total = 0
         with torch.no_grad():
@@ -144,7 +160,7 @@ class BERTTrainer(Trainer):
 
                     mlm_loss = torch.tensor(0.0, device=self.device)
                     pred_list = pred_tensor.tolist()
-                    for b in range(self.batch_size):
+                    for b in range(src.size(0)):
                         masked_idx = pred_list[b]
                         masked_idx = [int(x) for x in masked_idx if int(x) != self.pad_token_id]
                         masked_logits = mlm_logits[b, masked_idx, :]
@@ -157,9 +173,14 @@ class BERTTrainer(Trainer):
                                 f"NaN in mlm_loss in batch {b}. \nmasked_idx: {masked_idx}\nsrc: {unmasked_src}\ntargets: {unmasked_targets}")
                         predicted = masked_logits.argmax(dim=-1)
                         correct += (predicted == masked_targets).sum().float()
-                        total += masked_targets.sum().float()
+                        total += len(masked_targets).float()
 
                     mlm_loss = mlm_loss / self.batch_size
+
+                    nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
+                    nsp_targets = targets[:, 0].view(-1)
+                    nsp_correct += (nsp_predicted == nsp_targets).sum().float()
+                    nsp_total += len(nsp_targets).float()
 
                     nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
 
@@ -170,7 +191,10 @@ class BERTTrainer(Trainer):
                     print(f"[Warning] {err} at step {batch_idx}.")
                     continue  # Skip this batch
                 test_loss += loss.item()
+                mlm_test_loss += mlm_loss.item()
+                nsp_test_loss += nsp_loss.item()
 
-                pbar.set_postfix(loss=f"{test_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
+                num_batch += 1
+                pbar.set_postfix(loss=f"{test_loss / num_batch:.4f}", mlm_loss=f"{mlm_test_loss / num_batch:.4f}", nsp_loss=f"{nsp_test_loss / num_batch:.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
         valid_acc.append(correct / total)
         valid_loss_array.append(test_loss / len(val_loader))
