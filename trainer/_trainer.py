@@ -123,19 +123,20 @@ class Trainer(ABC):
 
     def train(self, train_loader, val_loader):
         current_step, current_epoch = self._reset_from_last_checkpoint()
-        train_acc = []
-        valid_acc = []
-        train_loss_array = []
-        valid_loss_array = []
         for epoch in range(current_epoch, self.num_epoch):
+            train_acc = []
+            valid_acc = []
+            train_loss_array = []
+            valid_loss_array = []
+
             self._train(epoch, current_step, train_loader, train_acc, train_loss_array)
             self._val(val_loader, valid_acc, valid_loss_array)
             current_step = 0
 
-        self._text_save(self.ckpt_dir + "train_acc.txt", train_acc)
-        self._text_save(self.ckpt_dir + "valid_acc.txt", valid_acc)
-        self._text_save(self.ckpt_dir + "train_loss.txt", train_loss_array)
-        self._text_save(self.ckpt_dir + "valid_loss.txt", valid_loss_array)
+            self._text_save(self.ckpt_dir + f"train_acc_epoch_{epoch}.txt", train_acc)
+            self._text_save(self.ckpt_dir + f"valid_acc_epoch_{epoch}.txt", valid_acc)
+            self._text_save(self.ckpt_dir + f"train_loss_epoch_{epoch}.txt", train_loss_array)
+            self._text_save(self.ckpt_dir + f"valid_loss_epoch_{epoch}.txt", valid_loss_array)
 
     def save(self):
         torch.save(self.model.state_dict(), self.ckpt_dir + "weights.pt")

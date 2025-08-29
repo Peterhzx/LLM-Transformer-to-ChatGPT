@@ -123,8 +123,8 @@ class BERTTrainer(Trainer):
 
             num_batch += 1
             pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", mlm_loss=f"{mlm_train_loss / num_batch:.4f}", nsp_loss=f"{nsp_train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
-        train_acc.append(correct / total)
-        train_loss_array.append(train_loss / num_batch)
+            train_acc.append(correct / total)
+            train_loss_array.append(train_loss / num_batch)
         if self.scheduler is not None:
             torch.save({
                 'current_epoch': epoch + 1,
@@ -196,5 +196,5 @@ class BERTTrainer(Trainer):
 
                 num_batch += 1
                 pbar.set_postfix(loss=f"{test_loss / num_batch:.4f}", mlm_loss=f"{mlm_test_loss / num_batch:.4f}", nsp_loss=f"{nsp_test_loss / num_batch:.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
-        valid_acc.append(correct / total)
-        valid_loss_array.append(test_loss / len(val_loader))
+                valid_acc.append(correct / total)
+                valid_loss_array.append(test_loss / num_batch)
