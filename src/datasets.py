@@ -59,13 +59,13 @@ class BERTDataset(Dataset):
 
     def __getitem__(self, idx):  # improvement: Instead of fixed-length sequences, consider dynamic batching with a custom collate_fn
         a_tokenized = self.df.iloc[idx, 0]
-        if idx % 2 == 0:
+        if random.random() > 0.5:
             b_tokenized = self.df.iloc[idx, 1]
-            isnext_token = 0
+            isnext_token = 1
         else:
             i = random.randint(0, len(self.df)-2)
             b_tokenized = self.df.iloc[i + 1 if i >= idx else i, 1]
-            isnext_token = 1
+            isnext_token = 0
 
         # create tgt seq
         tgt_tokenized = [isnext_token] + a_tokenized + [self.sep_token_id] + b_tokenized
