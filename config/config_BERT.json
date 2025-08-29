@@ -4,7 +4,7 @@
     "type": "WordPiece",
     "load": {
       "$comment": "key value is for load tokenizer from local file or train a new one. key dir is the directory to load tokenizer from or save tokenizer to ",
-      "value": false,
+      "value": true,
       "dir": "./trained_tokenizer/BERT"
     },
     "all_chars": [32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,66,67,68,69,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118,119,120,121,122,124,160,167,169,8208,8209,8211,8212,8216,8217,8220,8221,8224,8225,8230,8240,8242,8243,8364],
@@ -16,7 +16,7 @@
   },
   "Dataloader": {
     "$comment": "config of Dataloader. data_path is required",
-    "data_path": ".\\data\\wiki_en.parquet",
+    "data_path": ".\\data\\test.parquet",
     "allowed_chars": ""
   },
   "Trainer": {
@@ -29,7 +29,7 @@
         "max_seq_len": 100,
         "batch_size": 32,
         "random_token_start": 5,
-        "random_token_end": 29999,
+        "random_token_end": 28211,
         "pad_token_id": 0,
         "mask_token_id": 1,
         "cls_token_id": 2,
@@ -42,8 +42,8 @@
       "description": "save checkpoint every 5000 batch"
     },
     "resume": {
-      "value": true,
-      "ckpt_dir": "./checkpoints/transformer/2025_7_27/",
+      "value": false,
+      "ckpt_dir": "./checkpoints/BERT/2025_7_27/",
       "description": "when value=true, ckpt_dir is required. an example of ckpt_dir: ./checkpoints/transformer/<folder_name>/"
     },
     "model": {
