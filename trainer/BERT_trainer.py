@@ -66,14 +66,14 @@ class BERTTrainer(Trainer):
                         raise ValueError(f"NaN in mlm_loss in batch {b}. \nmasked_idx: {masked_idx}\nsrc: {unmasked_src}\ntargets: {unmasked_targets}")
                     predicted = masked_logits.argmax(dim=-1)
                     correct += (predicted == masked_targets).sum().float()
-                    total += len(masked_targets).float()
+                    total += float(len(masked_targets))
 
                 mlm_loss = mlm_loss / self.batch_size
 
                 nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
                 nsp_targets = targets[:, 0].view(-1)
                 nsp_correct += (nsp_predicted == nsp_targets).sum().float()
-                nsp_total += len(nsp_targets).float()
+                nsp_total += float(len(nsp_targets))
 
                 nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
 
@@ -173,14 +173,14 @@ class BERTTrainer(Trainer):
                                 f"NaN in mlm_loss in batch {b}. \nmasked_idx: {masked_idx}\nsrc: {unmasked_src}\ntargets: {unmasked_targets}")
                         predicted = masked_logits.argmax(dim=-1)
                         correct += (predicted == masked_targets).sum().float()
-                        total += len(masked_targets).float()
+                        total += float(len(masked_targets))
 
                     mlm_loss = mlm_loss / self.batch_size
 
                     nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
                     nsp_targets = targets[:, 0].view(-1)
                     nsp_correct += (nsp_predicted == nsp_targets).sum().float()
-                    nsp_total += len(nsp_targets).float()
+                    nsp_total += float(len(nsp_targets))
 
                     nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
 
