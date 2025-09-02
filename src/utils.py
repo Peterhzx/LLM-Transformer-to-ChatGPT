@@ -1,4 +1,5 @@
 import json
+import os.path
 import sys
 
 import jsonschema
@@ -11,7 +12,7 @@ import tokenizer as tok
 
 
 class NLPModelPipeline:
-    def __init__(self, config_path=r".\config\config_trans.json"):
+    def __init__(self, config_path=r".\config\configs\config_trans.json"):
         self.params = None
         self.dataloader = None
         self.tokenizer = None
@@ -24,7 +25,7 @@ class NLPModelPipeline:
         print("Loading configuration...")
         with open(json_path, 'r', encoding='utf-8') as f:
             self.params = json.load(f)
-        with open(r".\config\schema.json", 'r') as f:
+        with open(r".\config\schema\schema.json", 'r') as f:
             schema = json.load(f)
         try:
             validate(instance=self.params, schema=schema)
@@ -39,13 +40,25 @@ class NLPModelPipeline:
 
     def _prepare_tokenizer(self):
         print("Preparing tokenizer...")
-        self.tokenizer = getattr(tok, self.params["Tokenizer"]["type"])()
-        if self.params["Tokenizer"]["load"]["value"]:
-            self.tokenizer.load(self.params["Tokenizer"]["load"]["dir"])
+        tokenizer_type = self.params["Tokenizer"]["type"]
+        self.tokenizer = getattr(tok, tokenizer_type)()
+
+        load_params = self.params["Tokenizer"].get("load", {})
+        load_value = load_params.get("value", False)
+        tokenizer_dir = load_params.get("dir", os.path.join("./trained_tokenizer", tokenizer_type.lower()))
+
+        if load_value:
+            # Load existing tokenizer
+            self.tokenizer.load(tokenizer_dir)
         else:
-            data_df = self.dataloader.get_df(self.params["Tokenizer"].get("sample_size", 0.1))
+            # Train new tokenizer
+            sample_size = self.params["Tokenizer"].get("sample_size", 0.1)
+            data_df = self.dataloader.get_df(sample_size)
             self.tokenizer.train(data_df, self.params["Tokenizer"])
-            self.tokenizer.save(self.params["Tokenizer"]["load"]["dir"])
+
+            # Ensure directory exists
+            os.makedirs(tokenizer_dir, exist_ok=True)
+            self.tokenizer.save(tokenizer_dir)
 
     def _tokenize_data(self):
         print("Tokenizing data...")
@@ -67,13 +80,12 @@ class NLPModelPipeline:
 
     def run_pipline(self):
         self._load_data()
-        try:
-            self.params["Tokenizer"]
+        if "Tokenizer" in self.params:
             self._prepare_tokenizer()
             self._tokenize_data()
             self._train_and_save_model()
-            # self._eval_model()
-        except KeyError:
+            self._eval_model()
+        else:
             print("Training without tokenizer")
             self._train_and_save_model()
-            # self._eval_model()
+            self._eval_model()

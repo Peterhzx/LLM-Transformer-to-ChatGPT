@@ -192,23 +192,6 @@ class WordPiece(Tokenizer):
         except KeyError as e:
             print(f"KeyError {e} in update tokens_count and total_count")
 
-            """
-            Training: 27 % |██▋ | 8047 / 29886[44:23 < 2:29: 44, 2.43
-            it / s, log_likelihood = -8.88e+8]KeyError
-            '1234567890' in update
-            tokens_count and total_count
-            Training: 87 % |████████▋ | 25857 / 29886[2:57:30 < 30: 16, 2.22
-            it / s, log_likelihood = -8.87e+8]KeyError
-            ',0.8' in update
-            tokens_count and total_count
-            Training: 87 % |████████▋ | 25859 / 29886[2:57:31 < 30: 16, 2.22
-            it / s, log_likelihood = -8.87e+8]KeyError
-            '.4.4.7' in update
-            tokens_count and total_count
-            Training: 100 % |██████████ | 29886 / 29886[3:27:40 < 00: 00, 2.40
-            it / s, log_likelihood = -8.87e+8]
-            """
-
         # update tokenized_words, byte_pair_location and byte_pair_count
         for k, v in list(self.byte_pair_location[new_token].items()):
 

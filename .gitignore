@@ -16,6 +16,8 @@ notebook/
 # 数据文件
 data/
 *.csv
+*.xlsx
+*.json
 *.pkl
 *.h5
 *.parquet

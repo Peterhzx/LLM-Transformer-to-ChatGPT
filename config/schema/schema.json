@@ -6,7 +6,7 @@
   "properties": {
     "Tokenizer": {
       "type": "object",
-      "required": ["type", "load", "src_tokenizer_regex", "tgt_tokenizer_regex", "vocab_size", "all_chars"],
+      "required": ["type", "src_tokenizer_regex", "tgt_tokenizer_regex", "vocab_size", "all_chars"],
       "properties": {
         "type": {
           "type": "string",
@@ -15,7 +15,6 @@
         },
         "load": {
           "type": "object",
-          "required": ["value", "dir"],
           "properties": {
             "value": {
               "type": "boolean"

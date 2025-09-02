@@ -1,0 +1,49 @@
+# 模型文件
+trained_models/
+*.pt
+*.bin
+checkpoints/
+*.ckpt
+
+# Ignore configs (we mount them at runtime)
+config/configs/
+
+# Ignore Git data
+.git
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+.python-version
+.venv/
+venv/
+
+# Notebooks
+notebook/
+*.ipynb
+
+# IDE
+.idea/
+.vscode/
+
+# test file
+test.py
+test/
+index.txt
+size.txt
+src_counts.txt
+tgt_counts.txt
+
+# Ignore logs
+logs/
+*.log
+
+# 数据文件
+data/
+*.csv
+*.xlsx
+*.json
+*.pkl
+*.h5
+*.parquet

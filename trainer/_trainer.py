@@ -1,4 +1,5 @@
 import os
+import sys
 import time
 from abc import ABC
 from pathlib import Path
@@ -17,27 +18,34 @@ class Trainer(ABC):
         self.save_period = None
 
     def _init_ckpt_dir(self, hyperparams):
-        if hyperparams["resume"]["value"]:
-            self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
-        else:
+        try:
+            if hyperparams["resume"]["value"]:
+                if "ckpt_dir" in hyperparams["resume"]:
+                    self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
+                else:
+                    model_type = hyperparams["model"]["type"].lower()
+                    base_dir = Path("./checkpoints") / model_type
+
+                    # Check if base directory exists
+                    if not base_dir.exists():
+                        print(f"[Error] Checkpoint directory {base_dir} does not exist.")
+                        sys.exit(-1)
+
+                    # Get all subdirectories and sort by modification time
+                    dirs = [d for d in base_dir.iterdir() if d.is_dir()]
+                    if not dirs:
+                        print("[Error] No checkpoint found to resume.")
+                        sys.exit(-1)
+
+                    dirs.sort(key=os.path.getmtime)
+                    self.ckpt_dir = str(dirs[-1])
+            else:
+                self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
+        except KeyError:
             now = "_".join([str(item) for item in time.localtime()[:6]])
             model_type = hyperparams["model"]["type"].lower()
-            try:
-                self.ckpt_dir = r"./checkpoints/"
-                os.mkdir(self.ckpt_dir)
-                self.ckpt_dir = r"./checkpoints/" + model_type + r"/"
-                os.mkdir(self.ckpt_dir)
-                self.ckpt_dir = r"./checkpoints/" + model_type + r"/" + now + "/"
-                os.mkdir(self.ckpt_dir)
-            except FileExistsError:
-                try:
-                    self.ckpt_dir = r"./checkpoints/" + model_type + r"/"
-                    os.mkdir(self.ckpt_dir)
-                    self.ckpt_dir = r"./checkpoints/" + model_type + r"/" + now + "/"
-                    os.mkdir(self.ckpt_dir)
-                except FileExistsError:
-                    self.ckpt_dir = r"./checkpoints/" + model_type + r"/" + now + "/"
-                    os.mkdir(self.ckpt_dir)
+            self.ckpt_dir = os.path.join("./checkpoints", model_type, now)
+            os.makedirs(self.ckpt_dir, exist_ok=True)
 
     def _init_model(self, hyperparams, num_tokens):
         model_type = getattr(models, hyperparams["type"])
