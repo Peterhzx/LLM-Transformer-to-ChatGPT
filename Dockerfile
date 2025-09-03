@@ -19,6 +19,9 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-ENTRYPOINT ["python3"]
+# ENTRYPOINT ["python3"]
 
-CMD train.py
+CMD python3 train.py -C /app/config/configs/config.json
+
+
+# docker run --rm --gpus all -v D:/AI/LLM-Transformer-to-ChatGPT/config/configs/config_trans.json:/app/config.json -v D:/AI/LLM-Transformer-to-ChatGPT/data/en-fr.csv:/app/data/en-fr.csv llm-tf2gpt train.py /app/config.json

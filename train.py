@@ -1,14 +1,20 @@
+import argparse
 import sys
-
 
 from src.utils import NLPModelPipeline
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Usage: python train.py <config_path>")
-        sys.exit(1)
-    pipeline = NLPModelPipeline(sys.argv[1])
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-C", "--config", help="Pass in config path")
+
+    args = parser.parse_args()
+    if not args.config:
+        print("Missing -C --config")
+        sys.exit(-1)
+
+    pipeline = NLPModelPipeline(args.config)
     pipeline.run_pipline()
+
 
 """
 import argparse
@@ -30,8 +36,10 @@ if args.host:
     print(f"Host: {args.host}")
     
     
-    
-    
+    import sys
+    if len(sys.argv) < 2:
+        print("Usage: python train.py <config_path>")
+        sys.exit(1)
 config = load_config(sys.argv[1])
 dataloader = load_data(config["Dataloader"])
 tokenizer = train_tokenizer(dataloader, config["Tokenizer"])

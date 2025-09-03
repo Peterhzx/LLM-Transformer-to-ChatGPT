@@ -12,7 +12,7 @@ import tokenizer as tok
 
 
 class NLPModelPipeline:
-    def __init__(self, config_path=r".\config\configs\config_trans.json"):
+    def __init__(self, config_path=r"./config/configs/config_trans.json"):
         self.params = None
         self.dataloader = None
         self.tokenizer = None
@@ -25,7 +25,7 @@ class NLPModelPipeline:
         print("Loading configuration...")
         with open(json_path, 'r', encoding='utf-8') as f:
             self.params = json.load(f)
-        with open(r".\config\schema\schema.json", 'r') as f:
+        with open(r"./config/schema/schema.json", 'r') as f:
             schema = json.load(f)
         try:
             validate(instance=self.params, schema=schema)
@@ -89,3 +89,10 @@ class NLPModelPipeline:
             print("Training without tokenizer")
             self._train_and_save_model()
             self._eval_model()
+
+        """
+        self._load_data()
+        self._prepare_tokenizer()
+        self._tokenize_data()
+        self.dataloader.save("./data/en-fr_tokenized.scv")
+        """
