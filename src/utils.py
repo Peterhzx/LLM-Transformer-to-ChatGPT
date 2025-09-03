@@ -1,3 +1,4 @@
+import gc
 import json
 import os.path
 import sys
@@ -55,6 +56,8 @@ class NLPModelPipeline:
             sample_size = self.params["Tokenizer"].get("sample_size", 0.1)
             data_df = self.dataloader.get_df(sample_size)
             self.tokenizer.train(data_df, self.params["Tokenizer"])
+            del data_df
+            gc.collect()
 
             # Ensure directory exists
             os.makedirs(tokenizer_dir, exist_ok=True)
@@ -62,7 +65,7 @@ class NLPModelPipeline:
 
     def _tokenize_data(self):
         print("Tokenizing data...")
-        self.dataloader.tokenize_df(self.tokenizer, self.params["Tokenizer"])
+        self.tokenizer.tokenize(self.dataloader.df, self.params["Tokenizer"])
 
     def _train_and_save_model(self):
         print("Training model...")

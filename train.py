@@ -5,11 +5,11 @@ from src.utils import NLPModelPipeline
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-C", "--config", help="Pass in config path")
+    parser.add_argument("-C", "--config", help="Passing in config path")
 
     args = parser.parse_args()
     if not args.config:
-        print("Missing -C --config")
+        print("Missing -C CONFIG, --config CONFIG")
         sys.exit(-1)
 
     pipeline = NLPModelPipeline(args.config)

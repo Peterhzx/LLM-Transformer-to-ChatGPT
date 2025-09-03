@@ -1,3 +1,5 @@
+import gc
+
 import pandas as pd
 from torch.utils.data import DataLoader
 from tqdm import tqdm
@@ -59,9 +61,6 @@ class Dataloader:
 
     def get_df(self, sample_size=0.1):
         return self.df.sample(frac=sample_size)
-
-    def tokenize_df(self, tokenizer, params):
-        self.df = tokenizer.tokenize(self.df, params)
 
     def get_transformer_dataloader(self, max_seq_len, batch_size, pad_token_id=0, bos_token_id=1, eos_token_id=2, train_val_test_split=None):
         if train_val_test_split is None:

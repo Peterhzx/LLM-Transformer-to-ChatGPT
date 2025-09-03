@@ -1,8 +1,8 @@
+import gc
 import math
 import re
 import time
 
-import pandas as pd
 from tqdm import tqdm
 
 from tokenizer import Tokenizer
@@ -30,6 +30,7 @@ class WordPiece(Tokenizer):
         print("Preprocessing data for training tokenizer")
         time.sleep(0.5)
         self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, all_chars)
+        gc.collect()
         print("Training tokenizer")
         time.sleep(0.5)
         self._train_loop(vocab_size - len(special_tokens))
@@ -41,8 +42,10 @@ class WordPiece(Tokenizer):
         tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
         print(f"Tokenizing DataFrame using {self._vocab_fingerprint(self.tokens)} vocab")
         time.sleep(0.5)
-        tokenized_df = self._tokenize_df(df, src_tokenizer_regex, tgt_tokenizer_regex)
-        return tokenized_df
+        self._df_splitting(df, False, src_tokenizer_regex, tgt_tokenizer_regex)
+        gc.collect()
+        self._tokenize_df(df)
+        gc.collect()
 
     def _preprocess(self, df, src_tokenizer_regex, tgt_tokenizer_regex, all_chars):
         if isinstance(all_chars, list):
@@ -56,12 +59,12 @@ class WordPiece(Tokenizer):
             index = index + 1
 
         # split data into list of words. do not include symbols.
-        df_word_level_tokenized = self._df_splitting(df, True, src_tokenizer_regex, tgt_tokenizer_regex)
+        self._df_splitting(df, True, src_tokenizer_regex, tgt_tokenizer_regex)
 
         # initialize words_count and tokenized_words
-        col_names = df_word_level_tokenized.columns.tolist()
+        col_names = df.columns.tolist()
         for col_name in col_names:
-            for sentence in tqdm(df_word_level_tokenized[col_name], desc=f"Counting words in col {col_name}", total=len(df_word_level_tokenized)):
+            for sentence in tqdm(df[col_name], desc=f"Counting words in col {col_name}", total=len(df)):
                 for word in sentence:
                     if word not in self.words_count:
                         self.words_count[word] = 1
@@ -133,18 +136,20 @@ class WordPiece(Tokenizer):
             tgt_tokenizer_regex = tgt_tokenizer_regex.split("|")
             tgt_tokenizer_regex = "|".join(tgt_tokenizer_regex[:-2])
 
-        # avoid modifying the original dataset
-        df_word_level_tokenized = pd.DataFrame()
         col_names = df.columns.tolist()
         src_pattern = re.compile(src_tokenizer_regex, re.VERBOSE)
         tgt_pattern = re.compile(tgt_tokenizer_regex, re.VERBOSE)
+
         tqdm.pandas(desc=f"Splitting col {col_names[0]} into words")
-        df_word_level_tokenized[col_names[0]] = df[col_names[0]].progress_apply(self._word_level_tokenizer,
-                                                                                pattern=src_pattern)
+        tokenized_src = df[col_names[0]].progress_apply(self._word_level_tokenizer, pattern=src_pattern)
+        df[col_names[0]] = tokenized_src
+        del tokenized_src
+        gc.collect()
         tqdm.pandas(desc=f"Splitting col {col_names[1]} into words")
-        df_word_level_tokenized[col_names[1]] = df[col_names[1]].progress_apply(self._word_level_tokenizer,
-                                                                                pattern=tgt_pattern)
-        return df_word_level_tokenized
+        tokenized_tgt = df[col_names[1]].progress_apply(self._word_level_tokenizer, pattern=tgt_pattern)
+        df[col_names[1]] = tokenized_tgt
+        del tokenized_tgt
+        gc.collect()
 
     def _train_loop(self, vocab_size):
         with tqdm(total=vocab_size - len(self.tokens), desc="Training") as pbar:
@@ -152,6 +157,7 @@ class WordPiece(Tokenizer):
                 self._merge_byte_pair()
                 pbar.update(1)
                 pbar.set_postfix(log_likelihood=self._log_likelihood(self.tokens_count, self.total_count))
+                gc.collect()
 
     def _merge_byte_pair(self):
         # compute delta likelihood
@@ -261,12 +267,11 @@ class WordPiece(Tokenizer):
         self.tokens = final_vocab
         print(f"Final Vocabulary has {len(self.tokens)} tokens")
 
-    def _tokenize_df(self, df, src_tokenizer_regex, tgt_tokenizer_regex):
-        tokenized_df = self._df_splitting(df, False, src_tokenizer_regex, tgt_tokenizer_regex)
-        col_names = tokenized_df.columns.tolist()
+    def _tokenize_df(self, df):
+        col_names = df.columns.tolist()
         for col_name in col_names:
             tokenized_col = []
-            for sentence in tqdm(tokenized_df[col_name], desc=f"tokenizing col {col_name}", total=len(tokenized_df)):
+            for sentence in tqdm(df[col_name], desc=f"tokenizing col {col_name}", total=len(df)):
                 if not sentence:
                     sentence = [" "]
                 tokenized_sent = []
@@ -274,8 +279,7 @@ class WordPiece(Tokenizer):
                     tokenized_word = self._tokenize_word(word, False, self.tokens.get("<UNK>", 4))
                     tokenized_sent += tokenized_word
                 tokenized_col.append(tokenized_sent)
-            tokenized_df[col_name] = tokenized_col
-        return tokenized_df
+            df[col_name] = tokenized_col
 
     def _tokenize_word(self, word, training, unk_token_id=4):
         tokenized_word = []
