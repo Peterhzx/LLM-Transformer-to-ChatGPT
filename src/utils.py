@@ -72,7 +72,11 @@ class NLPModelPipeline:
         loader = getattr(self.dataloader, self.params["Trainer"]["dataloader"]["type"])
         train_loader, val_loader, self.test_loader = loader(**self.params["Trainer"]["dataloader"]["params"])
         _trainer = getattr(tr, self.params["Trainer"]["type"])
-        self.trainer = _trainer(self.params["Trainer"], len(self.tokenizer))
+        if self.tokenizer:
+            num_tokens = len(self.tokenizer)
+        else:
+            num_tokens = self.params["Trainer"]["num_tokens"]
+        self.trainer = _trainer(self.params["Trainer"], num_tokens)
         self.trainer.train(train_loader, val_loader)
         self.trainer.save()
 
@@ -98,4 +102,16 @@ class NLPModelPipeline:
         self._prepare_tokenizer()
         self._tokenize_data()
         self.dataloader.save("./data/en-fr_tokenized.scv")
+        
+        
+        self._load_data()
+        if "Tokenizer" in self.params:
+            self._prepare_tokenizer()
+            self._tokenize_data()
+            self._train_and_save_model()
+            self._eval_model()
+        else:
+            print("Training without tokenizer")
+            self._train_and_save_model()
+            self._eval_model()
         """

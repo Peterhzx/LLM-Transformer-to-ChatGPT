@@ -1,3 +1,4 @@
+import ast
 import random
 
 import torch
@@ -21,6 +22,10 @@ class TransformerDataset(Dataset):
         col_names = self.df.columns.tolist()
         src_tokenized = row[col_names[0]]
         tgt_tokenized = row[col_names[1]]
+
+        if isinstance(src_tokenized, str) or isinstance(tgt_tokenized, str):
+            src_tokenized = ast.literal_eval(src_tokenized)
+            tgt_tokenized = ast.literal_eval(tgt_tokenized)
 
         # prune and padding
         src_input = src_tokenized[:self.max_len]

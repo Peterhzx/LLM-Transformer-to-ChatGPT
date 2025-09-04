@@ -21,7 +21,8 @@ COPY . .
 
 # ENTRYPOINT ["python3"]
 
-CMD python3 train.py -C /app/config/configs/config.json
+CMD python3 train.py
 
 
-# docker run --rm --gpus all -v D:/AI/LLM-Transformer-to-ChatGPT/config/configs/config_trans.json:/app/config.json -v D:/AI/LLM-Transformer-to-ChatGPT/data/en-fr.csv:/app/data/en-fr.csv llm-tf2gpt train.py /app/config.json
+# docker run --rm --gpus all nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04 nvidia-smi
+# docker run --name myllm --gpus all -v D:/AI/LLM-Transformer-to-ChatGPT/config/configs:/app/config/configs -v D:/AI/LLM-Transformer-to-ChatGPT/data:/app/data llm-tf2gpt -C /app/config/configs/config.json
