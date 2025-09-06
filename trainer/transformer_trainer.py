@@ -53,39 +53,30 @@ class TransformerTrainer(Trainer):
             correct += ((predicted == targets) & mask).sum().float()
             total += mask.sum().float()
             if (batch_idx + 1) % self.save_period == 0:
+                checkpoint = {
+                    'current_epoch': epoch,
+                    'model_state_dict': self.model.state_dict(),
+                    'optimizer_state_dict': self.optimizer.state_dict(),
+                    'current_step': batch_idx + 1,
+                }
                 if self.scheduler is not None:
-                    torch.save({
-                        'current_epoch': epoch,
-                        'model_state_dict': self.model.state_dict(),
-                        'optimizer_state_dict': self.optimizer.state_dict(),
-                        'scheduler_state_dict': self.scheduler.state_dict(),
-                        'current_step': batch_idx + 1,
-                    }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
-                else:
-                    torch.save({
-                        'current_epoch': epoch,
-                        'model_state_dict': self.model.state_dict(),
-                        'optimizer_state_dict': self.optimizer.state_dict(),
-                        'current_step': batch_idx + 1,
-                    }, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
+                    checkpoint['scheduler_state_dict'] = self.scheduler.state_dict()
+
+                torch.save(checkpoint, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
 
             num_batch += 1
             pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}")
         train_acc.append(correct / total)
         train_loss_array.append(train_loss / num_batch)
+        checkpoint = {
+            'current_epoch': epoch + 1,
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+        }
         if self.scheduler is not None:
-            torch.save({
-                'current_epoch': epoch + 1,
-                'model_state_dict': self.model.state_dict(),
-                'optimizer_state_dict': self.optimizer.state_dict(),
-                'scheduler_state_dict': self.scheduler.state_dict(),
-            }, self.ckpt_dir + f"epoch{epoch + 1}.ckpt")
-        else:
-            torch.save({
-                'current_epoch': epoch + 1,
-                'model_state_dict': self.model.state_dict(),
-                'optimizer_state_dict': self.optimizer.state_dict(),
-            }, self.ckpt_dir + f"epoch{epoch + 1}.ckpt")
+            checkpoint['scheduler_state_dict'] = self.scheduler.state_dict()
+
+        torch.save(checkpoint, self.ckpt_dir + f"epoch{epoch + 1}.ckpt")
 
     def _val(self, val_loader, valid_acc, valid_loss_array):
         self.model.eval()
