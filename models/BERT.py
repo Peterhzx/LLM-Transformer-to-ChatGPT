@@ -29,9 +29,6 @@ class BERT(nn.Module):
         enc_output = enc_emb
         for i, layer in enumerate(self.encoder):
             enc_output = layer(enc_output, key_padding_mask)
-            if torch.isnan(enc_output).any():
-                print(f"NaN in encoder layer {i}")
-                break
         nsp_out = enc_output[:, 0, :]
         nsp_out = self.nsp_linear(nsp_out)
         out = enc_output @ self.embeddings.weight.T  # [batch_size, seq_len, num_emb]

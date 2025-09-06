@@ -52,17 +52,11 @@ class Transformer(nn.Module):
             enc_output = enc_emb
             for i, layer in enumerate(self.encoder_layers):
                 enc_output = layer(enc_output, src_key_padding_mask)
-                if torch.isnan(enc_output).any():
-                    print(f"NaN in encoder layer {i}")
-                    break
             if not self.training:
                 self.encoder_cache = enc_output
             dec_output = dec_emb
             for i, layer in enumerate(self.decoder_layers):
                 dec_output = layer(dec_output, enc_output, decoder_input_key_padding_mask, src_key_padding_mask)
-                if torch.isnan(dec_output).any():
-                    print(f"NaN in decoder layer {i}")
-                    break
             out = dec_output @ self.embeddings.weight.T
             return out
 
@@ -88,19 +82,7 @@ class EncoderLayer(nn.Module):
         self.norm_2 = nn.LayerNorm(embed_dim)
 
     def forward(self, x, src_key_padding_mask):
-        if src_key_padding_mask is not None:
-            fully_masked = src_key_padding_mask.all(dim=1)  # [batch]
-            if fully_masked.any():
-                for seq in src_key_padding_mask.tolist():
-                    print(seq)
-                print(f"Fully masked sequences: {fully_masked.sum().item()}")
-        if torch.isnan(x).any():
-            print("NaN in encoder input")
         out, _ = self.multi_head(x, x, x, key_padding_mask=src_key_padding_mask)
-        if torch.isnan(out).any():
-            print("NaN in encoder attention output")
-            # Log magnitude statistics
-            print(f"Max: {out.max().item()}, Min: {out.min().item()}")
         out = out + x
         MHA_out = self.norm_1(out)
         out = self.feedforward_1(MHA_out)
@@ -127,23 +109,13 @@ class DecoderLayer(nn.Module):
         self.norm_3 = nn.LayerNorm(embed_dim)
 
     def forward(self, decoder_input, encoder_output, decoder_input_key_padding_mask, src_key_padding_mask):
-        if torch.isnan(decoder_input).any():
-            print("NaN in decoder input")
         seq_len = decoder_input.size(1)
         attn_mask = torch.triu(torch.ones(seq_len, seq_len, dtype=torch.bool, device=decoder_input.device), diagonal=1)
         out, _ = self.self_attn(decoder_input, decoder_input, decoder_input, decoder_input_key_padding_mask,
                                 attn_mask=attn_mask)
-        if torch.isnan(out).any():
-            print("NaN in decoder self attention output")
-            # Log magnitude statistics
-            print(f"Max: {out.max().item()}, Min: {out.min().item()}")
         out = out + decoder_input
         MMHA_out = self.norm_1(out)
         out, _ = self.cross_attn(MMHA_out, encoder_output, encoder_output, key_padding_mask=src_key_padding_mask)
-        if torch.isnan(out).any():
-            print("NaN in decoder cross attention output")
-            # Log magnitude statistics
-            print(f"Max: {out.max().item()}, Min: {out.min().item()}")
         out = out + MMHA_out
         MHA_out = self.norm_2(out)
         out = self.feedforward_1(MHA_out)

@@ -43,64 +43,37 @@ class BERTTrainer(Trainer):
         train_iter = islice(train_iter, current_step, None)
         pbar = tqdm(train_iter, total=len(train_loader), desc="Training", initial=current_step)
         for batch_idx, (src, targets, pred_tensor) in enumerate(pbar, start=current_step):
-            if torch.isnan(src).any():
-                raise ValueError("NaN in input data")
             src, targets = src.to(self.device), targets.to(self.device)
             self.optimizer.zero_grad()
-            try:
-                mlm_logits, nsp_logits = self.model(src)
-                if torch.isnan(mlm_logits).any() or torch.isnan(nsp_logits).any():
-                    raise ValueError("NaN in model output")
+            mlm_logits, nsp_logits = self.model(src)
 
-                mlm_loss = torch.tensor(0.0, device=self.device)
-                pred_list = pred_tensor.tolist()
-                for b in range(src.size(0)):
-                    masked_idx = pred_list[b]
-                    masked_idx = [int(x) for x in masked_idx if int(x) != self.pad_token_id]
-                    masked_logits = mlm_logits[b, masked_idx, :]
-                    masked_targets = targets[b, masked_idx]
-                    mlm_loss += self.criterion(masked_logits, masked_targets)
-                    if torch.isnan(mlm_loss):
-                        unmasked_src = src[b]
-                        unmasked_targets = targets[b]
-                        raise ValueError(f"NaN in mlm_loss in batch {b}. \nmasked_idx: {masked_idx}\nsrc: {unmasked_src}\ntargets: {unmasked_targets}")
-                    predicted = masked_logits.argmax(dim=-1)
-                    correct += (predicted == masked_targets).sum().float()
-                    total += float(len(masked_targets))
+            mlm_loss = torch.tensor(0.0, device=self.device)
+            pred_list = pred_tensor.tolist()
+            for b in range(src.size(0)):
+                masked_idx = pred_list[b]
+                masked_idx = [int(x) for x in masked_idx if int(x) != self.pad_token_id]
+                masked_logits = mlm_logits[b, masked_idx, :]
+                masked_targets = targets[b, masked_idx]
+                mlm_loss += self.criterion(masked_logits, masked_targets)
+                predicted = masked_logits.argmax(dim=-1)
+                correct += (predicted == masked_targets).sum().float()
+                total += float(len(masked_targets))
 
-                mlm_loss = mlm_loss / self.batch_size
+            mlm_loss = mlm_loss / self.batch_size
 
-                nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
-                nsp_targets = targets[:, 0].view(-1)
-                nsp_correct += (nsp_predicted == nsp_targets).sum().float()
-                nsp_total += float(len(nsp_targets))
+            nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
+            nsp_targets = targets[:, 0].view(-1)
+            nsp_correct += (nsp_predicted == nsp_targets).sum().float()
+            nsp_total += float(len(nsp_targets))
 
-                nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
+            nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
 
-                if torch.isnan(nsp_loss) or torch.isnan(mlm_loss):
-                    raise ValueError(f"NaN in nsp_loss: {torch.isnan(nsp_loss)} and mlm_loss: {torch.isnan(mlm_loss)}")
-
-                loss = mlm_loss + nsp_loss
-                if torch.isnan(loss):
-                    raise ValueError("NaN in loss")
-                loss.backward()
-                for name, param in self.model.named_parameters():
-                    if param.grad is not None and torch.isnan(param.grad).any():
-                        print(f"NaN gradient in {name}")
-                        raise ValueError("NaN in gradients")
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)  # It prevents exploding gradients in deep Transformer models.
-                self.optimizer.step()
-                if self.scheduler is not None:
-                    self.scheduler.step()
-            except ValueError as e:
-                print(f"[Warning] {e} at step {batch_idx}.")
-                # _, _ = self._reset_from_last_checkpoint()
-                for name, param in self.model.named_parameters():
-                    if param.grad is not None and torch.isnan(param.grad).any():
-                        print(f"NaN gradient in {name}")
-                with open(self.ckpt_dir + "log.txt", "a") as f:
-                    f.write(f"{batch_idx}")
-                continue  # Skip this batch
+            loss = mlm_loss + nsp_loss
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)  # It prevents exploding gradients in deep Transformer models.
+            self.optimizer.step()
+            if self.scheduler is not None:
+                self.scheduler.step()
             train_loss += loss.item()
             mlm_train_loss += mlm_loss.item()
             nsp_train_loss += nsp_loss.item()
@@ -153,43 +126,30 @@ class BERTTrainer(Trainer):
             pbar = tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation")
             for batch_idx, (src, targets, pred_tensor) in pbar:
                 src, targets = src.to(self.device), targets.to(self.device)
-                try:
-                    mlm_logits, nsp_logits = self.model(src)
-                    if torch.isnan(mlm_logits).any() or torch.isnan(nsp_logits).any():
-                        raise ValueError("NaN in model output")
+                mlm_logits, nsp_logits = self.model(src)
 
-                    mlm_loss = torch.tensor(0.0, device=self.device)
-                    pred_list = pred_tensor.tolist()
-                    for b in range(src.size(0)):
-                        masked_idx = pred_list[b]
-                        masked_idx = [int(x) for x in masked_idx if int(x) != self.pad_token_id]
-                        masked_logits = mlm_logits[b, masked_idx, :]
-                        masked_targets = targets[b, masked_idx]
-                        mlm_loss += self.criterion(masked_logits, masked_targets)
-                        if torch.isnan(mlm_loss):
-                            unmasked_src = src[b]
-                            unmasked_targets = targets[b]
-                            raise ValueError(
-                                f"NaN in mlm_loss in batch {b}. \nmasked_idx: {masked_idx}\nsrc: {unmasked_src}\ntargets: {unmasked_targets}")
-                        predicted = masked_logits.argmax(dim=-1)
-                        correct += (predicted == masked_targets).sum().float()
-                        total += float(len(masked_targets))
+                mlm_loss = torch.tensor(0.0, device=self.device)
+                pred_list = pred_tensor.tolist()
+                for b in range(src.size(0)):
+                    masked_idx = pred_list[b]
+                    masked_idx = [int(x) for x in masked_idx if int(x) != self.pad_token_id]
+                    masked_logits = mlm_logits[b, masked_idx, :]
+                    masked_targets = targets[b, masked_idx]
+                    mlm_loss += self.criterion(masked_logits, masked_targets)
+                    predicted = masked_logits.argmax(dim=-1)
+                    correct += (predicted == masked_targets).sum().float()
+                    total += float(len(masked_targets))
 
-                    mlm_loss = mlm_loss / self.batch_size
+                mlm_loss = mlm_loss / self.batch_size
 
-                    nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
-                    nsp_targets = targets[:, 0].view(-1)
-                    nsp_correct += (nsp_predicted == nsp_targets).sum().float()
-                    nsp_total += float(len(nsp_targets))
+                nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
+                nsp_targets = targets[:, 0].view(-1)
+                nsp_correct += (nsp_predicted == nsp_targets).sum().float()
+                nsp_total += float(len(nsp_targets))
 
-                    nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
+                nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
 
-                    loss = mlm_loss + nsp_loss
-                    if torch.isnan(loss).any():
-                        raise ValueError("NaN in loss")
-                except ValueError as err:
-                    print(f"[Warning] {err} at step {batch_idx}.")
-                    continue  # Skip this batch
+                loss = mlm_loss + nsp_loss
                 test_loss += loss.item()
                 mlm_test_loss += mlm_loss.item()
                 nsp_test_loss += nsp_loss.item()

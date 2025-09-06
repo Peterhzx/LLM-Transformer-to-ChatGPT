@@ -36,37 +36,17 @@ class TransformerTrainer(Trainer):
         train_iter = islice(train_iter, current_step, None)
         pbar = tqdm(train_iter, total=len(train_loader), desc="Training", initial=current_step)
         for batch_idx, (src, decoder_input, targets) in enumerate(pbar, start=current_step):
-            if torch.isnan(src).any() or torch.isnan(decoder_input).any():
-                raise ValueError("NaN in input data")
             src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
             self.optimizer.zero_grad()
-            try:
-                outputs = self.model(src, decoder_input)
-                if torch.isnan(outputs).any():
-                    raise ValueError("NaN in model output")
-                outputs = outputs.reshape(-1, outputs.size(-1))
-                targets = targets.reshape(-1)
-                loss = self.criterion(outputs, targets)
-                if torch.isnan(loss):
-                    raise ValueError("NaN in loss")
-                loss.backward()
-                for name, param in self.model.named_parameters():
-                    if param.grad is not None and torch.isnan(param.grad).any():
-                        print(f"NaN gradient in {name}")
-                        raise ValueError("NaN in gradients")
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)  # It prevents exploding gradients in deep Transformer models.
-                self.optimizer.step()
-                if self.scheduler is not None:
-                    self.scheduler.step()
-            except ValueError as e:
-                print(f"[Warning] {e} at step {batch_idx}. Reloading last checkpoint...")
-                # _, _ = self._reset_from_last_checkpoint()
-                for name, param in self.model.named_parameters():
-                    if param.grad is not None and torch.isnan(param.grad).any():
-                        print(f"NaN gradient in {name}")
-                with open(self.ckpt_dir + "log.txt", "a") as f:
-                    f.write(f"{batch_idx}")
-                continue  # Skip this batch
+            outputs = self.model(src, decoder_input)
+            outputs = outputs.reshape(-1, outputs.size(-1))
+            targets = targets.reshape(-1)
+            loss = self.criterion(outputs, targets)
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)  # It prevents exploding gradients in deep Transformer models.
+            self.optimizer.step()
+            if self.scheduler is not None:
+                self.scheduler.step()
             train_loss += loss.item()
             predicted = outputs.argmax(dim=-1)
             mask = (targets != self.pad_token_id)
@@ -116,18 +96,10 @@ class TransformerTrainer(Trainer):
             pbar = tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation")
             for batch_idx, (src, decoder_input, targets) in pbar:
                 src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
-                try:
-                    outputs = self.model(src, decoder_input)
-                    if torch.isnan(outputs).any():
-                        raise ValueError("NaN in model output")
-                    outputs = outputs.view(-1, outputs.size(-1))
-                    targets = targets.view(-1)
-                    loss = self.criterion(outputs, targets)
-                    if torch.isnan(loss).any():
-                        raise ValueError("NaN in loss")
-                except ValueError as err:
-                    print(f"[Warning] {err} at step {batch_idx}.")
-                    continue  # Skip this batch
+                outputs = self.model(src, decoder_input)
+                outputs = outputs.view(-1, outputs.size(-1))
+                targets = targets.view(-1)
+                loss = self.criterion(outputs, targets)
                 test_loss += loss.item()
                 predicted = outputs.argmax(dim=-1)
                 correct += (predicted == targets).sum().item()
