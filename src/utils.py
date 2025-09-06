@@ -13,13 +13,14 @@ import tokenizer as tok
 
 
 class NLPModelPipeline:
-    def __init__(self, config_path=r"./config/configs/config_trans.json"):
+    def __init__(self, config_path=r"./config/configs/config_trans.json", mode="local"):
         self.params = None
         self.dataloader = None
         self.tokenizer = None
         self.trainer = None
         self.evaluator = None
         self.test_loader = None
+        self.mode = mode
         self._load_config(config_path)
 
     def _load_config(self, json_path):
@@ -37,7 +38,7 @@ class NLPModelPipeline:
 
     def _load_data(self):
         print("Creating Dataloader...")
-        self.dataloader = Dataloader(self.params["Dataloader"])
+        self.dataloader = Dataloader(self.params["Dataloader"], self.mode)
 
     def _prepare_tokenizer(self):
         print("Preparing tokenizer...")
@@ -76,7 +77,7 @@ class NLPModelPipeline:
             num_tokens = len(self.tokenizer)
         else:
             num_tokens = self.params["Trainer"]["num_tokens"]
-        self.trainer = _trainer(self.params["Trainer"], num_tokens)
+        self.trainer = _trainer(self.params["Trainer"], num_tokens, self.mode)
         self.trainer.train(train_loader, val_loader)
         self.trainer.save()
 

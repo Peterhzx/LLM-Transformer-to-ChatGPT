@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import time
@@ -13,18 +14,25 @@ import models
 class Trainer(ABC):
     def __init__(self):
         super(ABC, self).__init__()
+        self.mode = None
         self.pad_token_id = None
         self.num_epoch = None
         self.save_period = None
 
-    def _init_ckpt_dir(self, hyperparams):
+    def _init_ckpt_dir(self, hyperparams, mode):
+        if mode == "sagemaker":
+            parent = "/opt/ml/checkpoints"
+        elif mode == "local":
+            parent = "./checkpoints"
+        else:
+            raise ValueError(f"Invalid mode: {mode}")
         try:
             if hyperparams["resume"]["value"]:
                 if "ckpt_dir" in hyperparams["resume"]:
                     self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
                 else:
                     model_type = hyperparams["model"]["type"].lower()
-                    base_dir = Path("./checkpoints") / model_type
+                    base_dir = Path(parent) / model_type
 
                     # Check if base directory exists
                     if not base_dir.exists():
@@ -44,14 +52,22 @@ class Trainer(ABC):
         except KeyError:
             now = "_".join([str(item) for item in time.localtime()[:6]])
             model_type = hyperparams["model"]["type"].lower()
-            self.ckpt_dir = os.path.join("./checkpoints", model_type, now)
+            self.ckpt_dir = os.path.join(parent, model_type, now)
             os.makedirs(self.ckpt_dir, exist_ok=True)
+        logging.basicConfig(
+            filename=os.path.join(self.ckpt_dir, 'TRAINING.log'),
+            level=logging.INFO,
+            format='%(asctime)s - Trainer - %(levelname)s - %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
 
     def _init_model(self, hyperparams, num_tokens):
-        model_type = getattr(models, hyperparams["type"])
+        model_name = hyperparams["type"]
+        model_type = getattr(models, model_name)
         self.model = model_type(num_tokens=num_tokens, **hyperparams["params"])
         self.model.apply(self._init_weights)
         self.model.to(self.device)
+        logging.info(f"Training {model_name} model")
 
     def _init_optimizer(self, hyperparams):
         optim = getattr(torch.optim, hyperparams["type"])
@@ -101,10 +117,12 @@ class Trainer(ABC):
     def _reset_from_last_checkpoint(self):
         ckpt_files = sorted(Path(self.ckpt_dir).glob("*.ckpt"), key=os.path.getmtime)
         if not ckpt_files:
-            print("[Error] No checkpoint found to reset.")
+            print("[Warning] No checkpoint found to reset.")
+            logging.warning("No checkpoint found to reset.")
             return 0, 0
         last_ckpt = ckpt_files[-1]
         print(f"[Reloading checkpoint] {last_ckpt}")
+        logging.info(f"Reloading checkpoint {last_ckpt}.")
         checkpoint = torch.load(last_ckpt, map_location=self.device)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
@@ -113,6 +131,19 @@ class Trainer(ABC):
         current_step = checkpoint.get('current_step', 0)
         current_epoch = checkpoint.get('current_epoch', 0)
         return current_step, current_epoch
+
+    def _remove_ckpt_exceeding_limit(self, limit=2):
+        ckpt_files = sorted(Path(self.ckpt_dir).glob("*.ckpt"), key=os.path.getmtime)
+        if len(ckpt_files) <= limit or not ckpt_files:
+            logging.warning("No checkpoint to be removed.")
+            return
+        else:
+            for file_path in ckpt_files[:-limit]:
+                try:
+                    file_path.unlink()
+                    logging.info(f"Over limited checkpoint removed: {file_path}")
+                except Exception as e:
+                    logging.error(f"Unable to remove {file_path}: {e}")
 
     @staticmethod
     def _text_save(filename, data1):
@@ -123,32 +154,33 @@ class Trainer(ABC):
             file.write(s1)
         file.close()
 
-    def _train(self, epoch, current_step, train_loader, train_acc, train_loss_array):
+    def _train(self, epoch, current_step, train_loader):
         pass
 
-    def _val(self, val_loader, valid_acc, valid_loss_array):
+    def _val(self, epoch, val_loader):
         pass
 
     def train(self, train_loader, val_loader):
         current_step, current_epoch = self._reset_from_last_checkpoint()
         for epoch in range(current_epoch, self.num_epoch):
-            train_acc = []
-            valid_acc = []
-            train_loss_array = []
-            valid_loss_array = []
-
-            self._train(epoch, current_step, train_loader, train_acc, train_loss_array)
-            self._val(val_loader, valid_acc, valid_loss_array)
+            self._train(epoch, current_step, train_loader)
+            self._val(epoch, val_loader)
             current_step = 0
 
-            self._text_save(self.ckpt_dir + f"train_acc_epoch_{epoch}.txt", train_acc)
-            self._text_save(self.ckpt_dir + f"valid_acc_epoch_{epoch}.txt", valid_acc)
-            self._text_save(self.ckpt_dir + f"train_loss_epoch_{epoch}.txt", train_loss_array)
-            self._text_save(self.ckpt_dir + f"valid_loss_epoch_{epoch}.txt", valid_loss_array)
-
     def save(self):
-        torch.save(self.model.state_dict(), self.ckpt_dir + "weights.pt")
-        print("model saved to " + self.ckpt_dir + "weights.pt")
+        if self.mode == "sagemaker":
+            parent = os.environ.get("SM_OUTPUT_DIR", "/opt/ml/output/data")
+            file_dir = os.path.join(parent, "weights.pt")
+            torch.save(self.model.state_dict(), file_dir)
+            print(f"model saved to {file_dir}")
+            logging.info(f"model saved to {file_dir}")
+        elif self.mode == "local":
+            torch.save(self.model.state_dict(), os.path.join(self.ckpt_dir, "weights.pt"))
+            print("model saved to " + self.ckpt_dir + "/weights.pt")
+            logging.info(f"model saved to {self.ckpt_dir}/weights.pt")
+        else:
+            raise ValueError(f"Invalid mode: {self.mode}")
+
         """
         src_tensor, decoder_input_tensor, _ = train_set.__getitem__(0)
         torch.onnx.export(

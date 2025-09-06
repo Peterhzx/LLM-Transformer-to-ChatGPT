@@ -23,6 +23,7 @@
     "$comment": "config of Trainer. model, num_epoch are required.",
     "type": "BERTTrainer",
     "num_epoch": 10,
+    "max_num_ckpt": -1,
     "dataloader": {
       "type": "get_bert_dataloader",
       "params": {

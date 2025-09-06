@@ -1,4 +1,3 @@
-import gc
 import os
 
 import pandas as pd
@@ -17,7 +16,7 @@ class Dataloader:
         allowed_chars = config.get("allowed_chars", "")
         nrows = config.get("nrows", None)
 
-        print("Loading data")
+        print(f"Loading data: {df_path}")
         if df_path.endswith(".csv"):
             self.df = pd.read_csv(df_path, nrows=nrows)
         elif df_path.endswith(".xlsx"):

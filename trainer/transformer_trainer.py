@@ -1,3 +1,5 @@
+import logging
+import os
 import time
 from itertools import islice
 
@@ -8,13 +10,15 @@ from trainer import Trainer
 
 
 class TransformerTrainer(Trainer):
-    def __init__(self, hyperparams, num_tokens):
+    def __init__(self, hyperparams, num_tokens, mode):
         super(TransformerTrainer, self).__init__()
         self.pad_token_id = hyperparams["model"]["params"]["pad_token_id"]
         self.num_epoch = hyperparams["num_epoch"]
         self.save_period = hyperparams["save_period"]["value"]
+        self.max_num_ckpt = hyperparams.get("max_num_ckpt", -1)
+        self.mode = mode
         self._check_cuda_availability()
-        self._init_ckpt_dir(hyperparams)
+        self._init_ckpt_dir(hyperparams, mode)
         self._init_model(hyperparams["model"], num_tokens)
         self._init_optimizer(hyperparams["optimizer"])
         if "lr_scheduler" in hyperparams:
@@ -23,11 +27,12 @@ class TransformerTrainer(Trainer):
             self.scheduler = None
         self._init_criterion(hyperparams["criterion"])
 
-    def _train(self, epoch, current_step, train_loader, train_acc, train_loss_array):
+    def _train(self, epoch, current_step, train_loader):
         print('\nEpoch: %d' % epoch)
         self.model.train()
-        # torch.autograd.set_detect_anomaly(True)
         time.sleep(0.5)
+        train_acc = []
+        train_loss_array = []
         train_loss = 0
         num_batch = 0
         correct = 0
@@ -52,6 +57,12 @@ class TransformerTrainer(Trainer):
             mask = (targets != self.pad_token_id)
             correct += ((predicted == targets) & mask).sum().float()
             total += mask.sum().float()
+
+            num_batch += 1
+            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}")
+            train_acc.append(correct / total)
+            train_loss_array.append(train_loss / num_batch)
+
             if (batch_idx + 1) % self.save_period == 0:
                 checkpoint = {
                     'current_epoch': epoch,
@@ -62,12 +73,18 @@ class TransformerTrainer(Trainer):
                 if self.scheduler is not None:
                     checkpoint['scheduler_state_dict'] = self.scheduler.state_dict()
 
-                torch.save(checkpoint, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
+                if self.max_num_ckpt == -1:
+                    torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch}_step{batch_idx + 1}.ckpt"))
+                elif self.max_num_ckpt > 0:
+                    torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch}_step{batch_idx + 1}.ckpt"))
+                    self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
 
-            num_batch += 1
-            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}")
-        train_acc.append(correct / total)
-        train_loss_array.append(train_loss / num_batch)
+                self._text_save(os.path.join(self.ckpt_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
+                self._text_save(os.path.join(self.ckpt_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
+                logging.info(f"loss={train_loss / num_batch:.4f}, acc={correct / total:.2%} at epoch {epoch}, step {batch_idx + 1}")
+                train_acc = []
+                train_loss_array = []
+
         checkpoint = {
             'current_epoch': epoch + 1,
             'model_state_dict': self.model.state_dict(),
@@ -76,10 +93,20 @@ class TransformerTrainer(Trainer):
         if self.scheduler is not None:
             checkpoint['scheduler_state_dict'] = self.scheduler.state_dict()
 
-        torch.save(checkpoint, self.ckpt_dir + f"epoch{epoch + 1}.ckpt")
+        if self.max_num_ckpt == -1:
+            torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch + 1}.ckpt"))
+        elif self.max_num_ckpt > 0:
+            torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch + 1}.ckpt"))
+            self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
 
-    def _val(self, val_loader, valid_acc, valid_loss_array):
+        self._text_save(os.path.join(self.ckpt_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
+        self._text_save(os.path.join(self.ckpt_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
+        logging.info(f"loss={train_loss / num_batch:.4f}, acc={correct / total:.2%} at epoch {epoch}")
+
+    def _val(self, epoch, val_loader):
         self.model.eval()
+        valid_acc = []
+        valid_loss_array = []
         test_loss = 0
         correct = 0
         total = 0
@@ -97,5 +124,8 @@ class TransformerTrainer(Trainer):
                 total += targets.numel()
 
                 pbar.set_postfix(loss=f"{test_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
-        valid_acc.append(correct / total)
-        valid_loss_array.append(test_loss / len(val_loader))
+                valid_acc.append(correct / total)
+                valid_loss_array.append(test_loss / len(val_loader))
+        self._text_save(os.path.join(self.ckpt_dir, f"valid_acc_epoch_{epoch}.txt"), valid_acc)
+        self._text_save(os.path.join(self.ckpt_dir, f"valid_loss_epoch_{epoch}.txt"), valid_loss_array)
+        logging.info(f"loss={test_loss / (batch_idx + 1):.4f}, acc={correct / total:.2%} at epoch {epoch}")

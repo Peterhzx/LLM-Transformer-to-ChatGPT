@@ -5,18 +5,21 @@ from src.utils import NLPModelPipeline
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-C", "--config", help="Passing in config path")
+    parser.add_argument("-c", "--config", help="Passing in config path")
+    parser.add_argument("-m", "--mode", help="Currently have 2 modes: 'sagemaker' or 'local'")
 
     args = parser.parse_args()
-    if not args.config:
-        print("Missing -C CONFIG, --config CONFIG")
-        sys.exit(-1)
 
-    pipeline = NLPModelPipeline(args.config)
+    if args.mode not in ["sagemaker", "local"]:
+        raise ValueError(f"Invalid mode: {args.mode}")
+
+    pipeline = NLPModelPipeline(args.config, args.mode)
     pipeline.run_pipline()
 
 
 """
+loss 4.7510
+
 import argparse
 
 # Initialize the parser

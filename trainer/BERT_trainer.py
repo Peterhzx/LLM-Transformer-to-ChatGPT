@@ -1,3 +1,5 @@
+import logging
+import os
 import time
 from itertools import islice
 
@@ -9,14 +11,16 @@ from trainer import Trainer
 
 
 class BERTTrainer(Trainer):
-    def __init__(self, hyperparams, num_tokens):
+    def __init__(self, hyperparams, num_tokens, mode):
         super(BERTTrainer, self).__init__()
         self.pad_token_id = hyperparams["model"]["params"]["pad_token_id"]
         self.num_epoch = hyperparams["num_epoch"]
         self.save_period = hyperparams["save_period"]["value"]
         self.batch_size = hyperparams["dataloader"]["params"]["batch_size"]
+        self.max_num_ckpt = hyperparams.get("max_num_ckpt", -1)
+        self.mode = mode
         self._check_cuda_availability()
-        self._init_ckpt_dir(hyperparams)
+        self._init_ckpt_dir(hyperparams, mode)
         self._init_model(hyperparams["model"], num_tokens)
         self._init_optimizer(hyperparams["optimizer"])
         if "lr_scheduler" in hyperparams:
@@ -26,11 +30,12 @@ class BERTTrainer(Trainer):
         self._init_criterion(hyperparams["criterion"])
         self.criterion_nsp = nn.CrossEntropyLoss()
 
-    def _train(self, epoch, current_step, train_loader, train_acc, train_loss_array):
+    def _train(self, epoch, current_step, train_loader):
         print('\nEpoch: %d' % epoch)
         self.model.train()
-        # torch.autograd.set_detect_anomaly(True)
         time.sleep(0.5)
+        train_acc = []
+        train_loss_array = []
         train_loss = 0
         mlm_train_loss = 0
         nsp_train_loss = 0
@@ -77,6 +82,14 @@ class BERTTrainer(Trainer):
             train_loss += loss.item()
             mlm_train_loss += mlm_loss.item()
             nsp_train_loss += nsp_loss.item()
+
+            num_batch += 1
+            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", mlm_loss=f"{mlm_train_loss / num_batch:.4f}",
+                             nsp_loss=f"{nsp_train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}",
+                             nsp_acc=f"{nsp_correct / nsp_total:.2%}")
+            train_acc.append(correct / total)
+            train_loss_array.append(train_loss / num_batch)
+
             if (batch_idx + 1) % self.save_period == 0:
                 checkpoint = {
                     'current_epoch': epoch,
@@ -87,12 +100,17 @@ class BERTTrainer(Trainer):
                 if self.scheduler is not None:
                     checkpoint['scheduler_state_dict'] = self.scheduler.state_dict()
 
-                torch.save(checkpoint, self.ckpt_dir + f"epoch{epoch}_step{batch_idx + 1}.ckpt")
+                if self.max_num_ckpt == -1:
+                    torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch}_step{batch_idx + 1}.ckpt"))
+                elif self.max_num_ckpt > 0:
+                    torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch}_step{batch_idx + 1}.ckpt"))
+                    self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
 
-            num_batch += 1
-            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", mlm_loss=f"{mlm_train_loss / num_batch:.4f}", nsp_loss=f"{nsp_train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
-            train_acc.append(correct / total)
-            train_loss_array.append(train_loss / num_batch)
+                self._text_save(os.path.join(self.ckpt_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
+                self._text_save(os.path.join(self.ckpt_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
+                logging.info(f"loss={train_loss / num_batch:.4f}, mlm_loss={mlm_train_loss / num_batch:.4f}, nsp_loss={nsp_train_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}, step {batch_idx + 1}")
+                train_acc = []
+                train_loss_array = []
 
         checkpoint = {
             'current_epoch': epoch + 1,
@@ -102,10 +120,20 @@ class BERTTrainer(Trainer):
         if self.scheduler is not None:
             checkpoint['scheduler_state_dict'] = self.scheduler.state_dict()
 
-        torch.save(checkpoint, self.ckpt_dir + f"epoch{epoch + 1}.ckpt")
+        if self.max_num_ckpt == -1:
+            torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch + 1}.ckpt"))
+        elif self.max_num_ckpt > 0:
+            torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch + 1}.ckpt"))
+            self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
 
-    def _val(self, val_loader, valid_acc, valid_loss_array):
+        self._text_save(os.path.join(self.ckpt_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
+        self._text_save(os.path.join(self.ckpt_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
+        logging.info(f"loss={train_loss / num_batch:.4f}, mlm_loss={mlm_train_loss / num_batch:.4f}, nsp_loss={nsp_train_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")
+
+    def _val(self, epoch, val_loader):
         self.model.eval()
+        valid_acc = []
+        valid_loss_array = []
         test_loss = 0
         mlm_test_loss = 0
         nsp_test_loss = 0
@@ -150,3 +178,6 @@ class BERTTrainer(Trainer):
                 pbar.set_postfix(loss=f"{test_loss / num_batch:.4f}", mlm_loss=f"{mlm_test_loss / num_batch:.4f}", nsp_loss=f"{nsp_test_loss / num_batch:.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
                 valid_acc.append(correct / total)
                 valid_loss_array.append(test_loss / num_batch)
+        self._text_save(os.path.join(self.ckpt_dir, f"valid_acc_epoch_{epoch}.txt"), valid_acc)
+        self._text_save(os.path.join(self.ckpt_dir, f"valid_loss_epoch_{epoch}.txt"), valid_loss_array)
+        logging.info(f"loss={test_loss / num_batch:.4f}, mlm_loss={mlm_test_loss / num_batch:.4f}, nsp_loss={nsp_test_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")
