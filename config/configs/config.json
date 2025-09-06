@@ -1,7 +1,7 @@
 {
   "Dataloader": {
     "$comment": "config of Dataloader. data_path is required",
-    "data_path": "./data/en-fr_tokenized.csv"
+    "data_file": "./data/en-fr_tokenized.csv"
   },
   "Trainer": {
     "$comment": "config of Trainer. model, num_epoch are required.",

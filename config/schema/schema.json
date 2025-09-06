@@ -77,9 +77,9 @@
     },
     "Dataloader": {
       "type": "object",
-      "required": ["data_path"],
+      "required": ["data_file"],
       "properties": {
-        "data_path": {
+        "data_file": {
           "type": "string",
           "pattern": "^(?:[a-zA-Z]:)?(?:[\\/]?(?:.{1,2}|[^\\/:*?\"<>|\n]+)(?:[\\/](?:.{1,2}|[^\\/:*?\"<>|\n]+))*)?[^\\/:*?\"<>|\n]+.(?:csv|xlsx|json|parquet)$",
           "description": "Word level parser used for tokenizer training and tokenizing"

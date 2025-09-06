@@ -1,4 +1,5 @@
 import gc
+import os
 
 import pandas as pd
 from torch.utils.data import DataLoader
@@ -8,8 +9,11 @@ from src.datasets import TransformerDataset, BERTDataset
 
 
 class Dataloader:
-    def __init__(self, config):
-        df_path = config["data_path"]
+    def __init__(self, config, mode="local"):
+        df_path = config["data_file"]
+        if mode == "sagemaker":
+            parent = os.environ.get('SM_CHANNEL_TRAIN', "/opt/ml/input/data/train")
+            df_path = os.path.join(parent, df_path)
         allowed_chars = config.get("allowed_chars", "")
         nrows = config.get("nrows", None)
 

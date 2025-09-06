@@ -16,7 +16,7 @@
   },
   "Dataloader": {
     "$comment": "config of Dataloader. data_path is required",
-    "data_path": "./data/test.parquet",
+    "data_file": "./data/test.parquet",
     "allowed_chars": ""
   },
   "Trainer": {
