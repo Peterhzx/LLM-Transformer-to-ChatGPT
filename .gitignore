@@ -17,16 +17,9 @@ notebook/
 data/
 *.csv
 *.xlsx
-*.json
 *.pkl
 *.h5
 *.parquet
-
-# saved tokenizer
-trained_tokenizer/
-fingerprint.txt
-tokens.json
-reversed_tokens.json
 
 # 模型文件
 trained_models/

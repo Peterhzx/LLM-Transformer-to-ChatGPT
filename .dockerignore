@@ -43,7 +43,6 @@ logs/
 data/
 *.csv
 *.xlsx
-*.json
 *.pkl
 *.h5
 *.parquet
