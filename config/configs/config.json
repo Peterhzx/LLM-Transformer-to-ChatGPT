@@ -1,19 +1,20 @@
 {
+  "$comment": "this config is for training on sagemaker without tokenizer",
   "Dataloader": {
     "$comment": "config of Dataloader. data_path is required",
-    "data_file": "./data/en-fr_tokenized.csv"
+    "data_file": "en-fr_tokenized.csv"
   },
   "Trainer": {
     "$comment": "config of Trainer. model, num_epoch are required.",
     "type": "TransformerTrainer",
     "num_epoch": 10,
     "num_tokens": 30000,
-    "max_num_ckpt": -1,
+    "max_num_ckpt": 2,
     "dataloader": {
       "type": "get_transformer_dataloader",
       "params": {
-        "max_seq_len": 100,
-        "batch_size": 32,
+        "max_seq_len": 200,
+        "batch_size": 64,
         "train_val_test_split": [0.7, 0.15, 0.15],
         "pad_token_id": 0,
         "bos_token_id": 1,
@@ -21,11 +22,11 @@
       }
     },
     "save_period": {
-      "value": 5000,
-      "description": "save checkpoint every 5000 batch"
+      "value": 500,
+      "description": "save checkpoint every 500 batch"
     },
     "resume": {
-      "value": false,
+      "value": true,
       "description": "when value=true, ckpt_dir is required. an example of ckpt_dir: ./checkpoints/transformer/<folder_name>/"
     },
     "model": {
@@ -63,20 +64,5 @@
         "label_smoothing": 0.1
       }
     }
-  },
-  "Evaluator":{
-    "model": {
-      "type": "Transformer",
-      "params": {
-        "embed_dim": 512,
-        "num_layers": 6,
-        "num_heads": 8,
-        "feedforward_dim": 2048,
-        "num_tokens": 30000,
-        "pad_token_id": 0
-      }
-    },
-    "reversed_tokens_dir": "./",
-    "ckpt_dir": "./checkpoints/transformer/<folder_name>/"
   }
 }
