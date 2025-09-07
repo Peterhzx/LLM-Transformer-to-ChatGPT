@@ -106,8 +106,8 @@ class BERTTrainer(Trainer):
                     torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch}_step{batch_idx + 1}.ckpt"))
                     self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
 
-                self._text_save(os.path.join(self.ckpt_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
-                self._text_save(os.path.join(self.ckpt_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
+                self._text_save(os.path.join(self.output_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
+                self._text_save(os.path.join(self.output_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
                 logging.info(f"loss={train_loss / num_batch:.4f}, mlm_loss={mlm_train_loss / num_batch:.4f}, nsp_loss={nsp_train_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}, step {batch_idx + 1}")
                 train_acc = []
                 train_loss_array = []
@@ -126,8 +126,8 @@ class BERTTrainer(Trainer):
             torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch + 1}.ckpt"))
             self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
 
-        self._text_save(os.path.join(self.ckpt_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
-        self._text_save(os.path.join(self.ckpt_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
+        self._text_save(os.path.join(self.output_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
+        self._text_save(os.path.join(self.output_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
         logging.info(f"loss={train_loss / num_batch:.4f}, mlm_loss={mlm_train_loss / num_batch:.4f}, nsp_loss={nsp_train_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")
 
     def _val(self, epoch, val_loader):
@@ -178,6 +178,6 @@ class BERTTrainer(Trainer):
                 pbar.set_postfix(loss=f"{test_loss / num_batch:.4f}", mlm_loss=f"{mlm_test_loss / num_batch:.4f}", nsp_loss=f"{nsp_test_loss / num_batch:.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
                 valid_acc.append(correct / total)
                 valid_loss_array.append(test_loss / num_batch)
-        self._text_save(os.path.join(self.ckpt_dir, f"valid_acc_epoch_{epoch}.txt"), valid_acc)
-        self._text_save(os.path.join(self.ckpt_dir, f"valid_loss_epoch_{epoch}.txt"), valid_loss_array)
+        self._text_save(os.path.join(self.output_dir, f"valid_acc_epoch_{epoch}.txt"), valid_acc)
+        self._text_save(os.path.join(self.output_dir, f"valid_loss_epoch_{epoch}.txt"), valid_loss_array)
         logging.info(f"loss={test_loss / num_batch:.4f}, mlm_loss={mlm_test_loss / num_batch:.4f}, nsp_loss={nsp_test_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")

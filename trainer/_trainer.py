@@ -19,43 +19,91 @@ class Trainer(ABC):
         self.num_epoch = None
         self.save_period = None
 
-    def _init_ckpt_dir(self, hyperparams, mode):
+    def _init_dir(self, hyperparams, mode):
         if mode == "sagemaker":
-            parent = "/opt/ml/checkpoints"
+            ckpt_parent = "/opt/ml/checkpoints"
+            output_parent = os.environ.get('SM_OUTPUT_DIR', "/opt/ml/output/data")
+            try:
+                if hyperparams["resume"]["value"]:
+                    if "ckpt_dir" in hyperparams["resume"]:
+                        self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
+                        self.output_dir = hyperparams["resume"].get("output_dir", self.ckpt_dir)
+                    else:
+                        model_type = hyperparams["model"]["type"].lower()
+                        ckpt_base_dir = Path(ckpt_parent) / model_type
+                        output_base_dir = Path(output_parent) / model_type
+
+                        # Check if base directory exists
+                        if not ckpt_base_dir.exists():
+                            print(f"[Error] Checkpoint directory {ckpt_base_dir} does not exist.")
+                            raise KeyError
+                        if not output_base_dir.exists():
+                            print(f"[Error] Output directory {output_base_dir} does not exist.")
+                            raise KeyError
+
+                        # Get all subdirectories and sort by modification time
+                        ckpt_dirs = [d for d in ckpt_base_dir.iterdir() if d.is_dir()]
+                        if not ckpt_dirs:
+                            print("[Error] No checkpoint found to resume.")
+                            raise KeyError
+                        output_dirs = [d for d in output_base_dir.iterdir() if d.is_dir()]
+                        if not output_dirs:
+                            print("[Error] No output found to resume.")
+                            raise KeyError
+
+                        ckpt_dirs.sort(key=os.path.getmtime)
+                        self.ckpt_dir = str(ckpt_dirs[-1])
+                        output_dirs.sort(key=os.path.getmtime)
+                        self.output_dir = str(output_dirs[-1])
+                else:
+                    self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
+                    self.output_dir = hyperparams["resume"].get("output_dir", self.ckpt_dir)
+            except KeyError:
+                now = "_".join([str(item) for item in time.localtime()[:6]])
+                model_type = hyperparams["model"]["type"].lower()
+                self.ckpt_dir = os.path.join(ckpt_parent, model_type, now)
+                self.output_dir = os.path.join(output_parent, model_type, now)
+                os.makedirs(self.ckpt_dir, exist_ok=True)
+                os.makedirs(self.output_dir, exist_ok=True)
         elif mode == "local":
-            parent = "./checkpoints"
+            ckpt_parent = "./checkpoints"
+            try:
+                if hyperparams["resume"]["value"]:
+                    if "ckpt_dir" in hyperparams["resume"]:
+                        self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
+                        self.output_dir = self.ckpt_dir
+                    else:
+                        model_type = hyperparams["model"]["type"].lower()
+                        ckpt_base_dir = Path(ckpt_parent) / model_type
+
+                        # Check if base directory exists
+                        if not ckpt_base_dir.exists():
+                            print(f"[Error] Checkpoint directory {ckpt_base_dir} does not exist.")
+                            sys.exit(-1)
+
+                        # Get all subdirectories and sort by modification time
+                        ckpt_dirs = [d for d in ckpt_base_dir.iterdir() if d.is_dir()]
+                        if not ckpt_dirs:
+                            print("[Error] No checkpoint found to resume.")
+                            sys.exit(-1)
+
+                        ckpt_dirs.sort(key=os.path.getmtime)
+                        self.ckpt_dir = str(ckpt_dirs[-1])
+                        self.output_dir = self.ckpt_dir
+                else:
+                    self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
+                    self.output_dir = self.ckpt_dir
+            except KeyError:
+                now = "_".join([str(item) for item in time.localtime()[:6]])
+                model_type = hyperparams["model"]["type"].lower()
+                self.ckpt_dir = os.path.join(ckpt_parent, model_type, now)
+                os.makedirs(self.ckpt_dir, exist_ok=True)
+                self.output_dir = self.ckpt_dir
         else:
             raise ValueError(f"Invalid mode: {mode}")
-        try:
-            if hyperparams["resume"]["value"]:
-                if "ckpt_dir" in hyperparams["resume"]:
-                    self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
-                else:
-                    model_type = hyperparams["model"]["type"].lower()
-                    base_dir = Path(parent) / model_type
 
-                    # Check if base directory exists
-                    if not base_dir.exists():
-                        print(f"[Error] Checkpoint directory {base_dir} does not exist.")
-                        sys.exit(-1)
-
-                    # Get all subdirectories and sort by modification time
-                    dirs = [d for d in base_dir.iterdir() if d.is_dir()]
-                    if not dirs:
-                        print("[Error] No checkpoint found to resume.")
-                        sys.exit(-1)
-
-                    dirs.sort(key=os.path.getmtime)
-                    self.ckpt_dir = str(dirs[-1])
-            else:
-                self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
-        except KeyError:
-            now = "_".join([str(item) for item in time.localtime()[:6]])
-            model_type = hyperparams["model"]["type"].lower()
-            self.ckpt_dir = os.path.join(parent, model_type, now)
-            os.makedirs(self.ckpt_dir, exist_ok=True)
         logging.basicConfig(
-            filename=os.path.join(self.ckpt_dir, 'TRAINING.log'),
+            filename=os.path.join(self.output_dir, 'TRAINING.log'),
             level=logging.INFO,
             format='%(asctime)s - Trainer - %(levelname)s - %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
@@ -87,6 +135,7 @@ class Trainer(ABC):
                 lambda_lr = lambda step: embed_dim ** -0.5 * min((step + 1) ** -0.5, (step + 1) * warmup_steps ** -1.5)
                 self.scheduler = lr_sch(self.optimizer, lr_lambda=lambda_lr)
             else:
+                logging.error("Invalid lambda type")
                 raise ValueError("Invalid lambda type")
         else:
             self.scheduler = lr_sch(self.optimizer, **hyperparams["param"])
@@ -97,6 +146,7 @@ class Trainer(ABC):
 
     def _check_cuda_availability(self):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        logging.info(f"Using {self.device} device")
         print(f"Using {self.device} device")
 
     @staticmethod
@@ -119,7 +169,7 @@ class Trainer(ABC):
         if not ckpt_files:
             print("[Warning] No checkpoint found to reset.")
             logging.warning("No checkpoint found to reset.")
-            return 0, 0
+            return 0, 0, {}
         last_ckpt = ckpt_files[-1]
         print(f"[Reloading checkpoint] {last_ckpt}")
         logging.info(f"Reloading checkpoint {last_ckpt}.")
@@ -130,7 +180,8 @@ class Trainer(ABC):
             self.scheduler.load_state_dict(checkpoint.get('scheduler_state_dict', self.scheduler.state_dict()))
         current_step = checkpoint.get('current_step', 0)
         current_epoch = checkpoint.get('current_epoch', 0)
-        return current_step, current_epoch
+        with open(os.path.join(self.ckpt_dir, ))
+        return current_step, current_epoch,
 
     def _remove_ckpt_exceeding_limit(self, limit=2):
         ckpt_files = sorted(Path(self.ckpt_dir).glob("*.ckpt"), key=os.path.getmtime)
@@ -168,16 +219,15 @@ class Trainer(ABC):
             current_step = 0
 
     def save(self):
+        file_dir = os.path.join(self.output_dir, "weights.pt")
         if self.mode == "sagemaker":
-            parent = os.environ.get("SM_OUTPUT_DIR", "/opt/ml/output/data")
-            file_dir = os.path.join(parent, "weights.pt")
             torch.save(self.model.state_dict(), file_dir)
             print(f"model saved to {file_dir}")
             logging.info(f"model saved to {file_dir}")
         elif self.mode == "local":
-            torch.save(self.model.state_dict(), os.path.join(self.ckpt_dir, "weights.pt"))
-            print("model saved to " + self.ckpt_dir + "/weights.pt")
-            logging.info(f"model saved to {self.ckpt_dir}/weights.pt")
+            torch.save(self.model.state_dict(), file_dir)
+            print(f"model saved to {file_dir}")
+            logging.info(f"model saved to {file_dir}")
         else:
             raise ValueError(f"Invalid mode: {self.mode}")
 
