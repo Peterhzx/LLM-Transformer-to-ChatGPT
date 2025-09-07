@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -17,8 +18,8 @@ class TransformerTrainer(Trainer):
         self.save_period = hyperparams["save_period"]["value"]
         self.max_num_ckpt = hyperparams.get("max_num_ckpt", -1)
         self.mode = mode
+        self._init_dir(hyperparams, mode)
         self._check_cuda_availability()
-        self._init_ckpt_dir(hyperparams, mode)
         self._init_model(hyperparams["model"], num_tokens)
         self._init_optimizer(hyperparams["optimizer"])
         if "lr_scheduler" in hyperparams:
@@ -27,16 +28,24 @@ class TransformerTrainer(Trainer):
             self.scheduler = None
         self._init_criterion(hyperparams["criterion"])
 
-    def _train(self, epoch, current_step, train_loader):
+    def _save_acc_loss(self, train_loss, correct, total):
+        resume_acc_loss = {
+            "train_loss": train_loss,
+            "correct": correct,
+            "total": total
+        }
+        with open(os.path.join(self.output_dir, "resume_acc_loss.json"), "w") as f:
+            json.dump(resume_acc_loss, f, indent=4)
+
+    def _train(self, epoch, current_step, train_loader, resume_acc_loss):
         print('\nEpoch: %d' % epoch)
         self.model.train()
         time.sleep(0.5)
         train_acc = []
         train_loss_array = []
-        train_loss = 0
-        num_batch = 0
-        correct = 0
-        total = 0
+        train_loss = resume_acc_loss.get("train_loss", 0)
+        correct = resume_acc_loss.get("correct", 0)
+        total = resume_acc_loss.get("total", 0)
         train_iter = iter(train_loader)
         train_iter = islice(train_iter, current_step, None)
         pbar = tqdm(train_iter, total=len(train_loader), desc="Training", initial=current_step)
@@ -55,13 +64,12 @@ class TransformerTrainer(Trainer):
             train_loss += loss.item()
             predicted = outputs.argmax(dim=-1)
             mask = (targets != self.pad_token_id)
-            correct += ((predicted == targets) & mask).sum().float()
-            total += mask.sum().float()
+            correct += ((predicted == targets) & mask).sum().float().item()
+            total += mask.sum().float().item()
 
-            num_batch += 1
-            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}")
+            pbar.set_postfix(loss=f"{train_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
             train_acc.append(correct / total)
-            train_loss_array.append(train_loss / num_batch)
+            train_loss_array.append(train_loss / (batch_idx + 1))
 
             if (batch_idx + 1) % self.save_period == 0:
                 checkpoint = {
@@ -78,10 +86,11 @@ class TransformerTrainer(Trainer):
                 elif self.max_num_ckpt > 0:
                     torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch}_step{batch_idx + 1}.ckpt"))
                     self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
+                self._save_acc_loss(train_loss, correct, total)
 
                 self._text_save(os.path.join(self.output_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
                 self._text_save(os.path.join(self.output_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
-                logging.info(f"loss={train_loss / num_batch:.4f}, acc={correct / total:.2%} at epoch {epoch}, step {batch_idx + 1}")
+                logging.info(f"loss={train_loss / (batch_idx + 1):.4f}, acc={correct / total:.2%} at epoch {epoch}, step {batch_idx + 1}")
                 train_acc = []
                 train_loss_array = []
 
@@ -98,10 +107,11 @@ class TransformerTrainer(Trainer):
         elif self.max_num_ckpt > 0:
             torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch + 1}.ckpt"))
             self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
+        self._save_acc_loss(0, 0, 0)
 
         self._text_save(os.path.join(self.output_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
         self._text_save(os.path.join(self.output_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
-        logging.info(f"loss={train_loss / num_batch:.4f}, acc={correct / total:.2%} at epoch {epoch}")
+        logging.info(f"loss={train_loss / len(train_loader):.4f}, acc={correct / total:.2%} at epoch {epoch}")
 
     def _val(self, epoch, val_loader):
         self.model.eval()
@@ -120,12 +130,13 @@ class TransformerTrainer(Trainer):
                 loss = self.criterion(outputs, targets)
                 test_loss += loss.item()
                 predicted = outputs.argmax(dim=-1)
-                correct += (predicted == targets).sum().item()
-                total += targets.numel()
+                mask = (targets != self.pad_token_id)
+                correct += ((predicted == targets) & mask).sum().float().item()
+                total += mask.sum().float().item()
 
                 pbar.set_postfix(loss=f"{test_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}")
                 valid_acc.append(correct / total)
-                valid_loss_array.append(test_loss / len(val_loader))
+                valid_loss_array.append(test_loss / (batch_idx + 1))
         self._text_save(os.path.join(self.output_dir, f"valid_acc_epoch_{epoch}.txt"), valid_acc)
         self._text_save(os.path.join(self.output_dir, f"valid_loss_epoch_{epoch}.txt"), valid_loss_array)
-        logging.info(f"loss={test_loss / (batch_idx + 1):.4f}, acc={correct / total:.2%} at epoch {epoch}")
+        logging.info(f"loss={test_loss / len(val_loader):.4f}, acc={correct / total:.2%} at epoch {epoch}")

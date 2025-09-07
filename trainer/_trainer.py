@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import sys
@@ -180,8 +181,14 @@ class Trainer(ABC):
             self.scheduler.load_state_dict(checkpoint.get('scheduler_state_dict', self.scheduler.state_dict()))
         current_step = checkpoint.get('current_step', 0)
         current_epoch = checkpoint.get('current_epoch', 0)
-        with open(os.path.join(self.ckpt_dir, ))
-        return current_step, current_epoch,
+        try:
+            with open(os.path.join(self.output_dir, "resume_acc_loss.json"), "r") as f:
+                resume_acc_loss = json.load(f)
+        except Exception as e:
+            logging.warning(f"Unable to resume acc and loss: {e}")
+            print(f"[Warning] Unable to resume acc and loss: {e}")
+            resume_acc_loss = {}
+        return current_step, current_epoch, resume_acc_loss
 
     def _remove_ckpt_exceeding_limit(self, limit=2):
         ckpt_files = sorted(Path(self.ckpt_dir).glob("*.ckpt"), key=os.path.getmtime)
@@ -205,16 +212,16 @@ class Trainer(ABC):
             file.write(s1)
         file.close()
 
-    def _train(self, epoch, current_step, train_loader):
+    def _train(self, epoch, current_step, train_loader, resume_acc_loss):
         pass
 
     def _val(self, epoch, val_loader):
         pass
 
     def train(self, train_loader, val_loader):
-        current_step, current_epoch = self._reset_from_last_checkpoint()
+        current_step, current_epoch, resume_acc_loss = self._reset_from_last_checkpoint()
         for epoch in range(current_epoch, self.num_epoch):
-            self._train(epoch, current_step, train_loader)
+            self._train(epoch, current_step, train_loader, resume_acc_loss)
             self._val(epoch, val_loader)
             current_step = 0
 

@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import time
@@ -19,8 +20,8 @@ class BERTTrainer(Trainer):
         self.batch_size = hyperparams["dataloader"]["params"]["batch_size"]
         self.max_num_ckpt = hyperparams.get("max_num_ckpt", -1)
         self.mode = mode
+        self._init_dir(hyperparams, mode)
         self._check_cuda_availability()
-        self._init_ckpt_dir(hyperparams, mode)
         self._init_model(hyperparams["model"], num_tokens)
         self._init_optimizer(hyperparams["optimizer"])
         if "lr_scheduler" in hyperparams:
@@ -30,20 +31,32 @@ class BERTTrainer(Trainer):
         self._init_criterion(hyperparams["criterion"])
         self.criterion_nsp = nn.CrossEntropyLoss()
 
-    def _train(self, epoch, current_step, train_loader):
+    def _save_acc_loss(self, train_loss, mlm_train_loss, nsp_train_loss, nsp_correct, nsp_total, correct, total):
+        resume_acc_loss = {
+            "train_loss": train_loss,
+            "mlm_train_loss": mlm_train_loss,
+            "nsp_train_loss": nsp_train_loss,
+            "nsp_correct": nsp_correct,
+            "nsp_total": nsp_total,
+            "correct": correct,
+            "total": total
+        }
+        with open(os.path.join(self.output_dir, "resume_acc_loss.json"), "w") as f:
+            json.dump(resume_acc_loss, f, indent=4)
+
+    def _train(self, epoch, current_step, train_loader, resume_acc_loss):
         print('\nEpoch: %d' % epoch)
         self.model.train()
         time.sleep(0.5)
         train_acc = []
         train_loss_array = []
-        train_loss = 0
-        mlm_train_loss = 0
-        nsp_train_loss = 0
-        num_batch = 0
-        nsp_correct = 0
-        nsp_total = 0
-        correct = 0
-        total = 0
+        train_loss = resume_acc_loss.get("train_loss", 0)
+        mlm_train_loss = resume_acc_loss.get("mlm_train_loss", 0)
+        nsp_train_loss = resume_acc_loss.get("nsp_train_loss", 0)
+        nsp_correct = resume_acc_loss.get("nsp_correct", 0)
+        nsp_total = resume_acc_loss.get("nsp_total", 0)
+        correct = resume_acc_loss.get("correct", 0)
+        total = resume_acc_loss.get("total", 0)
         train_iter = iter(train_loader)
         train_iter = islice(train_iter, current_step, None)
         pbar = tqdm(train_iter, total=len(train_loader), desc="Training", initial=current_step)
@@ -61,14 +74,14 @@ class BERTTrainer(Trainer):
                 masked_targets = targets[b, masked_idx]
                 mlm_loss += self.criterion(masked_logits, masked_targets)
                 predicted = masked_logits.argmax(dim=-1)
-                correct += (predicted == masked_targets).sum().float()
+                correct += (predicted == masked_targets).sum().float().item()
                 total += float(len(masked_targets))
 
             mlm_loss = mlm_loss / self.batch_size
 
             nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
             nsp_targets = targets[:, 0].view(-1)
-            nsp_correct += (nsp_predicted == nsp_targets).sum().float()
+            nsp_correct += (nsp_predicted == nsp_targets).sum().float().item()
             nsp_total += float(len(nsp_targets))
 
             nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
@@ -83,12 +96,11 @@ class BERTTrainer(Trainer):
             mlm_train_loss += mlm_loss.item()
             nsp_train_loss += nsp_loss.item()
 
-            num_batch += 1
-            pbar.set_postfix(loss=f"{train_loss / num_batch:.4f}", mlm_loss=f"{mlm_train_loss / num_batch:.4f}",
-                             nsp_loss=f"{nsp_train_loss / num_batch:.4f}", acc=f"{correct / total:.2%}",
+            pbar.set_postfix(loss=f"{train_loss / (batch_idx + 1):.4f}", mlm_loss=f"{mlm_train_loss / (batch_idx + 1):.4f}",
+                             nsp_loss=f"{nsp_train_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}",
                              nsp_acc=f"{nsp_correct / nsp_total:.2%}")
             train_acc.append(correct / total)
-            train_loss_array.append(train_loss / num_batch)
+            train_loss_array.append(train_loss / (batch_idx + 1))
 
             if (batch_idx + 1) % self.save_period == 0:
                 checkpoint = {
@@ -105,10 +117,11 @@ class BERTTrainer(Trainer):
                 elif self.max_num_ckpt > 0:
                     torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch}_step{batch_idx + 1}.ckpt"))
                     self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
+                self._save_acc_loss(train_loss, mlm_train_loss, nsp_train_loss, nsp_correct, nsp_total, correct, total)
 
                 self._text_save(os.path.join(self.output_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
                 self._text_save(os.path.join(self.output_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
-                logging.info(f"loss={train_loss / num_batch:.4f}, mlm_loss={mlm_train_loss / num_batch:.4f}, nsp_loss={nsp_train_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}, step {batch_idx + 1}")
+                logging.info(f"loss={train_loss / (batch_idx + 1):.4f}, mlm_loss={mlm_train_loss / (batch_idx + 1):.4f}, nsp_loss={nsp_train_loss / (batch_idx + 1):.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}, step {batch_idx + 1}")
                 train_acc = []
                 train_loss_array = []
 
@@ -125,10 +138,11 @@ class BERTTrainer(Trainer):
         elif self.max_num_ckpt > 0:
             torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch + 1}.ckpt"))
             self._remove_ckpt_exceeding_limit(self.max_num_ckpt)
+        self._save_acc_loss(0, 0, 0, 0, 0, 0, 0)
 
         self._text_save(os.path.join(self.output_dir, f"train_acc_epoch_{epoch}.txt"), train_acc)
         self._text_save(os.path.join(self.output_dir, f"train_loss_epoch_{epoch}.txt"), train_loss_array)
-        logging.info(f"loss={train_loss / num_batch:.4f}, mlm_loss={mlm_train_loss / num_batch:.4f}, nsp_loss={nsp_train_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")
+        logging.info(f"loss={train_loss / len(train_loader):.4f}, mlm_loss={mlm_train_loss / len(train_loader):.4f}, nsp_loss={nsp_train_loss / len(train_loader):.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")
 
     def _val(self, epoch, val_loader):
         self.model.eval()
@@ -137,7 +151,6 @@ class BERTTrainer(Trainer):
         test_loss = 0
         mlm_test_loss = 0
         nsp_test_loss = 0
-        num_batch = 0
         nsp_correct = 0
         nsp_total = 0
         correct = 0
@@ -157,14 +170,14 @@ class BERTTrainer(Trainer):
                     masked_targets = targets[b, masked_idx]
                     mlm_loss += self.criterion(masked_logits, masked_targets)
                     predicted = masked_logits.argmax(dim=-1)
-                    correct += (predicted == masked_targets).sum().float()
+                    correct += (predicted == masked_targets).sum().float().item()
                     total += float(len(masked_targets))
 
                 mlm_loss = mlm_loss / self.batch_size
 
                 nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
                 nsp_targets = targets[:, 0].view(-1)
-                nsp_correct += (nsp_predicted == nsp_targets).sum().float()
+                nsp_correct += (nsp_predicted == nsp_targets).sum().float().item()
                 nsp_total += float(len(nsp_targets))
 
                 nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
@@ -174,10 +187,9 @@ class BERTTrainer(Trainer):
                 mlm_test_loss += mlm_loss.item()
                 nsp_test_loss += nsp_loss.item()
 
-                num_batch += 1
-                pbar.set_postfix(loss=f"{test_loss / num_batch:.4f}", mlm_loss=f"{mlm_test_loss / num_batch:.4f}", nsp_loss=f"{nsp_test_loss / num_batch:.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
+                pbar.set_postfix(loss=f"{test_loss / (batch_idx + 1):.4f}", mlm_loss=f"{mlm_test_loss / (batch_idx + 1):.4f}", nsp_loss=f"{nsp_test_loss / (batch_idx + 1):.4f}", acc=f"{correct / total:.2%}", nsp_acc=f"{nsp_correct / nsp_total:.2%}")
                 valid_acc.append(correct / total)
-                valid_loss_array.append(test_loss / num_batch)
+                valid_loss_array.append(test_loss / (batch_idx + 1))
         self._text_save(os.path.join(self.output_dir, f"valid_acc_epoch_{epoch}.txt"), valid_acc)
         self._text_save(os.path.join(self.output_dir, f"valid_loss_epoch_{epoch}.txt"), valid_loss_array)
-        logging.info(f"loss={test_loss / num_batch:.4f}, mlm_loss={mlm_test_loss / num_batch:.4f}, nsp_loss={nsp_test_loss / num_batch:.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")
+        logging.info(f"loss={test_loss / len(val_loader):.4f}, mlm_loss={mlm_test_loss / len(val_loader):.4f}, nsp_loss={nsp_test_loss / len(val_loader):.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")
