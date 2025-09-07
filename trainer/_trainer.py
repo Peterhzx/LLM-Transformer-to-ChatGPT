@@ -182,7 +182,7 @@ class Trainer(ABC):
         current_step = checkpoint.get('current_step', 0)
         current_epoch = checkpoint.get('current_epoch', 0)
         try:
-            with open(os.path.join(self.output_dir, "resume_acc_loss.json"), "r") as f:
+            with open(os.path.join(self.ckpt_dir, "resume_acc_loss.json"), "r") as f:
                 resume_acc_loss = json.load(f)
         except Exception as e:
             logging.warning(f"Unable to resume acc and loss: {e}")

@@ -34,7 +34,7 @@ class TransformerTrainer(Trainer):
             "correct": correct,
             "total": total
         }
-        with open(os.path.join(self.output_dir, "resume_acc_loss.json"), "w") as f:
+        with open(os.path.join(self.ckpt_dir, "resume_acc_loss.json"), "w") as f:
             json.dump(resume_acc_loss, f, indent=4)
 
     def _train(self, epoch, current_step, train_loader, resume_acc_loss):
