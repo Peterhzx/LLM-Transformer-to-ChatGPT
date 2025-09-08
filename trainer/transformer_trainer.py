@@ -5,7 +5,7 @@ import time
 from itertools import islice
 
 import torch
-from torch.cuda import amp
+from torch import amp
 from tqdm import tqdm
 
 from trainer import Trainer
@@ -29,7 +29,7 @@ class TransformerTrainer(Trainer):
         else:
             self.scheduler = None
         self._init_criterion(hyperparams["criterion"])
-        self.scaler = amp.GradScaler(enabled=self.enable_amp) if self.cuda_availability else None
+        self.scaler = amp.GradScaler("cuda", enabled=self.enable_amp) if self.cuda_availability else None
 
     def _save_acc_loss(self, train_loss, correct, total):
         resume_acc_loss = {
