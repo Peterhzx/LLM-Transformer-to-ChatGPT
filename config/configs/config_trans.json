@@ -25,6 +25,7 @@
     "type": "TransformerTrainer",
     "num_epoch": 10,
     "max_num_ckpt": -1,
+    "enable_amp": true,
     "dataloader": {
       "type": "get_transformer_dataloader",
       "params": {

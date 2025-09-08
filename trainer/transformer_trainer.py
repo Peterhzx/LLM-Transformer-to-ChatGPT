@@ -5,6 +5,7 @@ import time
 from itertools import islice
 
 import torch
+from torch.cuda import amp
 from tqdm import tqdm
 
 from trainer import Trainer
@@ -17,9 +18,10 @@ class TransformerTrainer(Trainer):
         self.num_epoch = hyperparams["num_epoch"]
         self.save_period = hyperparams["save_period"]["value"]
         self.max_num_ckpt = hyperparams.get("max_num_ckpt", -1)
+        self.enable_amp = hyperparams.get("enable_amp", True)
         self.mode = mode
         self._init_dir(hyperparams, mode)
-        self._check_cuda_availability()
+        self.cuda_availability = self._check_cuda_availability()
         self._init_model(hyperparams["model"], num_tokens)
         self._init_optimizer(hyperparams["optimizer"])
         if "lr_scheduler" in hyperparams:
@@ -27,6 +29,7 @@ class TransformerTrainer(Trainer):
         else:
             self.scheduler = None
         self._init_criterion(hyperparams["criterion"])
+        self.scaler = amp.GradScaler(enabled=self.enable_amp) if self.cuda_availability else None
 
     def _save_acc_loss(self, train_loss, correct, total):
         resume_acc_loss = {
@@ -52,14 +55,24 @@ class TransformerTrainer(Trainer):
         for batch_idx, (src, decoder_input, targets) in enumerate(pbar, start=current_step):
             src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
             self.optimizer.zero_grad()
-            outputs = self.model(src, decoder_input)
-            outputs = outputs.reshape(-1, outputs.size(-1))
-            targets = targets.reshape(-1)
-            loss = self.criterion(outputs, targets)
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)  # It prevents exploding gradients in deep Transformer models.
-            self.optimizer.step()
-            if self.scheduler is not None:
+            with amp.autocast(enabled=self.enable_amp and self.cuda_availability):
+                outputs = self.model(src, decoder_input)
+                outputs = outputs.reshape(-1, outputs.size(-1))
+                targets = targets.reshape(-1)
+                loss = self.criterion(outputs, targets)
+
+            if self.scaler:
+                self.scaler.scale(loss).backward()
+                self.scaler.unscale_(self.optimizer)
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+            else:
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1.0)
+                self.optimizer.step()
+
+            if self.scheduler:
                 self.scheduler.step()
             train_loss += loss.item()
             predicted = outputs.argmax(dim=-1)
@@ -78,8 +91,10 @@ class TransformerTrainer(Trainer):
                     'optimizer_state_dict': self.optimizer.state_dict(),
                     'current_step': batch_idx + 1,
                 }
-                if self.scheduler is not None:
+                if self.scheduler:
                     checkpoint['scheduler_state_dict'] = self.scheduler.state_dict()
+                if self.scaler:
+                    checkpoint['scaler_state_dict'] = self.scaler.state_dict()
 
                 if self.max_num_ckpt == -1:
                     torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch}_step{batch_idx + 1}.ckpt"))
@@ -99,8 +114,10 @@ class TransformerTrainer(Trainer):
             'model_state_dict': self.model.state_dict(),
             'optimizer_state_dict': self.optimizer.state_dict(),
         }
-        if self.scheduler is not None:
+        if self.scheduler:
             checkpoint['scheduler_state_dict'] = self.scheduler.state_dict()
+        if self.scaler:
+            checkpoint['scaler_state_dict'] = self.scaler.state_dict()
 
         if self.max_num_ckpt == -1:
             torch.save(checkpoint, os.path.join(self.ckpt_dir, f"epoch{epoch + 1}.ckpt"))
@@ -124,7 +141,8 @@ class TransformerTrainer(Trainer):
             pbar = tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation")
             for batch_idx, (src, decoder_input, targets) in pbar:
                 src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
-                outputs = self.model(src, decoder_input)
+                with amp.autocast(enabled=self.enable_amp and self.cuda_availability):
+                    outputs = self.model(src, decoder_input)
                 outputs = outputs.view(-1, outputs.size(-1))
                 targets = targets.view(-1)
                 loss = self.criterion(outputs, targets)

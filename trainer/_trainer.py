@@ -15,6 +15,7 @@ import models
 class Trainer(ABC):
     def __init__(self):
         super(ABC, self).__init__()
+        self.scaler = None
         self.mode = None
         self.pad_token_id = None
         self.num_epoch = None
@@ -149,6 +150,7 @@ class Trainer(ABC):
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         logging.info(f"Using {self.device} device")
         print(f"Using {self.device} device")
+        return torch.cuda.is_available()
 
     @staticmethod
     def _init_weights(m):
@@ -177,8 +179,10 @@ class Trainer(ABC):
         checkpoint = torch.load(last_ckpt, map_location=self.device)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        if self.scheduler is not None:
+        if self.scheduler:
             self.scheduler.load_state_dict(checkpoint.get('scheduler_state_dict', self.scheduler.state_dict()))
+        if self.scaler:
+            self.scaler.load_state_dict(checkpoint.get('scaler_state_dict', self.scaler.state_dict()))
         current_step = checkpoint.get('current_step', 0)
         current_epoch = checkpoint.get('current_epoch', 0)
         try:

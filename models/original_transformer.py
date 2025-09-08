@@ -28,7 +28,8 @@ class Transformer(nn.Module):
             decoder_input_key_padding_mask = (decoder_input == self.padding_idx)
         src_key_padding_mask = src_key_padding_mask.to(decoder_input.device)
         decoder_input_key_padding_mask = decoder_input_key_padding_mask.to(decoder_input.device)
-        if with_cache and self.encoder_cache is not None:  # inference with cached encoder output
+        """
+                if with_cache and self.encoder_cache is not None:  # inference with cached encoder output
             assert decoder_input.size(1) <= self.positional_encoding.size(0), \
                 "decoder_input is longer than the precomputed positional encoding"
             dec_emb = self.embeddings(decoder_input) + self.positional_encoding[:decoder_input.size(1), :].unsqueeze(
@@ -45,20 +46,21 @@ class Transformer(nn.Module):
                 "encoder_input is longer than the precomputed positional encoding"
             assert decoder_input.size(1) <= self.positional_encoding.size(0), \
                 "decoder_input is longer than the precomputed positional encoding"
-            enc_emb = self.embeddings(encoder_input) + self.positional_encoding[:encoder_input.size(1), :].unsqueeze(
-                0).to(decoder_input.device)
-            dec_emb = self.embeddings(decoder_input) + self.positional_encoding[:decoder_input.size(1), :].unsqueeze(
-                0).to(decoder_input.device)
-            enc_output = enc_emb
-            for i, layer in enumerate(self.encoder_layers):
-                enc_output = layer(enc_output, src_key_padding_mask)
-            if not self.training:
-                self.encoder_cache = enc_output
-            dec_output = dec_emb
-            for i, layer in enumerate(self.decoder_layers):
-                dec_output = layer(dec_output, enc_output, decoder_input_key_padding_mask, src_key_padding_mask)
-            out = dec_output @ self.embeddings.weight.T
-            return out
+        """
+        enc_emb = self.embeddings(encoder_input) + self.positional_encoding[:encoder_input.size(1), :].unsqueeze(
+            0).to(decoder_input.device)
+        dec_emb = self.embeddings(decoder_input) + self.positional_encoding[:decoder_input.size(1), :].unsqueeze(
+            0).to(decoder_input.device)
+        enc_output = enc_emb
+        for i, layer in enumerate(self.encoder_layers):
+            enc_output = layer(enc_output, src_key_padding_mask)
+        # if not self.training:
+            # self.encoder_cache = enc_output
+        dec_output = dec_emb
+        for i, layer in enumerate(self.decoder_layers):
+            dec_output = layer(dec_output, enc_output, decoder_input_key_padding_mask, src_key_padding_mask)
+        out = dec_output @ self.embeddings.weight.T
+        return out
 
     @staticmethod
     def build_positional_encoding(max_len, d_model):
