@@ -29,6 +29,8 @@
       "params": {
         "max_seq_len": 100,
         "batch_size": 32,
+        "num_workers": 8,
+        "pin_memory": true,
         "random_token_start": 5,
         "random_token_end": 28211,
         "pad_token_id": 0,

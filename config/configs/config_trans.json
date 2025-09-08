@@ -30,6 +30,8 @@
       "params": {
         "max_seq_len": 100,
         "batch_size": 32,
+        "num_workers": 8,
+        "pin_memory": true,
         "train_val_test_split": [0.7, 0.15, 0.15],
         "pad_token_id": 0,
         "bos_token_id": 1,
