@@ -5,7 +5,7 @@ import time
 from itertools import islice
 
 import torch
-from torch.cuda import amp
+from torch import amp
 from tqdm import tqdm
 
 from trainer import Trainer
@@ -29,7 +29,7 @@ class TransformerTrainer(Trainer):
         else:
             self.scheduler = None
         self._init_criterion(hyperparams["criterion"])
-        self.scaler = amp.GradScaler(enabled=self.enable_amp) if self.cuda_availability else None
+        self.scaler = amp.GradScaler("cuda", enabled=self.enable_amp) if self.cuda_availability else None
 
     def _save_acc_loss(self, train_loss, correct, total):
         resume_acc_loss = {
@@ -55,7 +55,7 @@ class TransformerTrainer(Trainer):
         for batch_idx, (src, decoder_input, targets) in enumerate(pbar, start=current_step):
             src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
             self.optimizer.zero_grad()
-            with amp.autocast(enabled=self.enable_amp and self.cuda_availability):
+            with amp.autocast("cuda", enabled=self.enable_amp and self.cuda_availability):
                 outputs = self.model(src, decoder_input)
                 outputs = outputs.reshape(-1, outputs.size(-1))
                 targets = targets.reshape(-1)
@@ -141,7 +141,7 @@ class TransformerTrainer(Trainer):
             pbar = tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation")
             for batch_idx, (src, decoder_input, targets) in pbar:
                 src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
-                with amp.autocast(enabled=self.enable_amp and self.cuda_availability):
+                with amp.autocast("cuda", enabled=self.enable_amp and self.cuda_availability):
                     outputs = self.model(src, decoder_input)
                 outputs = outputs.view(-1, outputs.size(-1))
                 targets = targets.view(-1)

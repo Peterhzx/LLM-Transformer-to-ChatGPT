@@ -6,7 +6,7 @@ from itertools import islice
 
 import torch
 from torch import nn
-from torch.cuda import amp
+from torch import amp
 from tqdm import tqdm
 
 from trainer import Trainer
@@ -32,7 +32,7 @@ class BERTTrainer(Trainer):
             self.scheduler = None
         self._init_criterion(hyperparams["criterion"])
         self.criterion_nsp = nn.CrossEntropyLoss()
-        self.scaler = amp.GradScaler(enabled=self.enable_amp) if self.cuda_availability else None
+        self.scaler = amp.GradScaler("cuda", enabled=self.enable_amp) if self.cuda_availability else None
 
     def _save_acc_loss(self, train_loss, mlm_train_loss, nsp_train_loss, nsp_correct, nsp_total, correct, total):
         resume_acc_loss = {
@@ -66,7 +66,7 @@ class BERTTrainer(Trainer):
         for batch_idx, (src, targets, pred_tensor) in enumerate(pbar, start=current_step):
             src, targets = src.to(self.device), targets.to(self.device)
             self.optimizer.zero_grad()
-            with amp.autocast(enabled=self.enable_amp and self.cuda_availability):
+            with amp.autocast("cuda", enabled=self.enable_amp and self.cuda_availability):
                 mlm_logits, nsp_logits = self.model(src)
 
                 mlm_loss = torch.tensor(0.0, device=self.device)
@@ -176,7 +176,7 @@ class BERTTrainer(Trainer):
             pbar = tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation")
             for batch_idx, (src, targets, pred_tensor) in pbar:
                 src, targets = src.to(self.device), targets.to(self.device)
-                with amp.autocast(enabled=self.enable_amp and self.cuda_availability):
+                with amp.autocast("cuda", enabled=self.enable_amp and self.cuda_availability):
                     mlm_logits, nsp_logits = self.model(src)
 
                 mlm_loss = torch.tensor(0.0, device=self.device)
