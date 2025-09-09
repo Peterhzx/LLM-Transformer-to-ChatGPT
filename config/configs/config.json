@@ -2,7 +2,7 @@
   "$comment": "this config is for training on sagemaker without tokenizer",
   "Dataloader": {
     "$comment": "config of Dataloader. data_path is required",
-    "data_file": "./data/en-fr_tokenized.parquet"
+    "data_file": "en-fr_tokenized.csv"
   },
   "Trainer": {
     "$comment": "config of Trainer. model, num_epoch are required.",
@@ -14,9 +14,9 @@
     "dataloader": {
       "type": "get_transformer_dataloader",
       "params": {
-        "max_seq_len": 100,
-        "batch_size": 32,
-        "num_workers": 20,
+        "max_seq_len": 200,
+        "batch_size": 64,
+        "num_workers": 8,
         "pin_memory": true,
         "train_val_test_split": [0.7, 0.15, 0.15],
         "pad_token_id": 0,
@@ -25,12 +25,12 @@
       }
     },
     "save_period": {
-      "value": 100,
-      "description": "save checkpoint every 100 batch"
+      "value": 500,
+      "description": "save checkpoint every 500 batch"
     },
     "resume": {
       "value": true,
-      "description": "an example of ckpt_dir: ./checkpoints/transformer/<folder_name>/"
+      "description": "when value=true, ckpt_dir is required. an example of ckpt_dir: ./checkpoints/transformer/<folder_name>/"
     },
     "model": {
       "type": "Transformer",
