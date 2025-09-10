@@ -63,32 +63,28 @@ class BERTTrainer(Trainer):
         train_iter = iter(train_loader)
         train_iter = islice(train_iter, current_step, None)
         pbar = tqdm(train_iter, total=len(train_loader), desc="Training", initial=current_step)
-        for batch_idx, (src, targets, pred_tensor) in enumerate(pbar, start=current_step):
-            src, targets = src.to(self.device), targets.to(self.device)
+        for batch_idx, (src, targets, mask_tensor) in enumerate(pbar, start=current_step):
+            src, targets, mask_tensor = src.to(self.device), targets.to(self.device), mask_tensor.to(self.device)
             self.optimizer.zero_grad()
             with amp.autocast("cuda", enabled=self.enable_amp and self.cuda_availability):
                 mlm_logits, nsp_logits = self.model(src)
 
-                mlm_loss = torch.tensor(0.0, device=self.device)
-                pred_list = pred_tensor.tolist()
-                for b in range(src.size(0)):
-                    masked_idx = pred_list[b]
-                    masked_idx = [int(x) for x in masked_idx if int(x) != self.pad_token_id]
-                    masked_logits = mlm_logits[b, masked_idx, :]
-                    masked_targets = targets[b, masked_idx]
-                    mlm_loss += self.criterion(masked_logits, masked_targets)
-                    predicted = masked_logits.argmax(dim=-1)
-                    correct += (predicted == masked_targets).sum().float().item()
-                    total += float(len(masked_targets))
+                masked_logits = mlm_logits.reshape(-1, mlm_logits.size(-1))
+                masked_targets = targets.reshape(-1)
+                mask_tensor = mask_tensor.reshape(-1)
+                masked_logits = masked_logits[mask_tensor, :]
+                masked_targets = masked_targets[mask_tensor]
 
-                mlm_loss = mlm_loss / self.batch_size
+                mlm_loss = self.criterion(masked_logits, masked_targets)
+                predicted = masked_logits.argmax(dim=-1)
+                correct += (predicted == masked_targets).sum().float().item()
+                total += float(len(masked_targets))
 
+                nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
                 nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
                 nsp_targets = targets[:, 0].view(-1)
                 nsp_correct += (nsp_predicted == nsp_targets).sum().float().item()
                 nsp_total += float(len(nsp_targets))
-
-                nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
 
                 loss = mlm_loss + nsp_loss
 
@@ -174,33 +170,30 @@ class BERTTrainer(Trainer):
         total = 0
         with torch.no_grad():
             pbar = tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation")
-            for batch_idx, (src, targets, pred_tensor) in pbar:
-                src, targets = src.to(self.device), targets.to(self.device)
+            for batch_idx, (src, targets, mask_tensor) in pbar:
+                src, targets, mask_tensor = src.to(self.device), targets.to(self.device), mask_tensor.to(self.device)
                 with amp.autocast("cuda", enabled=self.enable_amp and self.cuda_availability):
                     mlm_logits, nsp_logits = self.model(src)
 
-                mlm_loss = torch.tensor(0.0, device=self.device)
-                pred_list = pred_tensor.tolist()
-                for b in range(src.size(0)):
-                    masked_idx = pred_list[b]
-                    masked_idx = [int(x) for x in masked_idx if int(x) != self.pad_token_id]
-                    masked_logits = mlm_logits[b, masked_idx, :]
-                    masked_targets = targets[b, masked_idx]
-                    mlm_loss += self.criterion(masked_logits, masked_targets)
+                    masked_logits = mlm_logits.reshape(-1, mlm_logits.size(-1))
+                    masked_targets = targets.reshape(-1)
+                    mask_tensor = mask_tensor.reshape(-1)
+                    masked_logits = masked_logits[mask_tensor, :]
+                    masked_targets = masked_targets[mask_tensor]
+
+                    mlm_loss = self.criterion(masked_logits, masked_targets)
                     predicted = masked_logits.argmax(dim=-1)
                     correct += (predicted == masked_targets).sum().float().item()
                     total += float(len(masked_targets))
 
-                mlm_loss = mlm_loss / self.batch_size
+                    nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
+                    nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
+                    nsp_targets = targets[:, 0].view(-1)
+                    nsp_correct += (nsp_predicted == nsp_targets).sum().float().item()
+                    nsp_total += float(len(nsp_targets))
 
-                nsp_predicted = nsp_logits.argmax(dim=-1).view(-1)
-                nsp_targets = targets[:, 0].view(-1)
-                nsp_correct += (nsp_predicted == nsp_targets).sum().float().item()
-                nsp_total += float(len(nsp_targets))
+                    loss = mlm_loss + nsp_loss
 
-                nsp_loss = self.criterion_nsp(nsp_logits, targets[:, 0])
-
-                loss = mlm_loss + nsp_loss
                 test_loss += loss.item()
                 mlm_test_loss += mlm_loss.item()
                 nsp_test_loss += nsp_loss.item()
@@ -210,4 +203,4 @@ class BERTTrainer(Trainer):
                 valid_loss_array.append(test_loss / (batch_idx + 1))
         self._text_save(os.path.join(self.output_dir, f"valid_acc_epoch_{epoch}.txt"), valid_acc)
         self._text_save(os.path.join(self.output_dir, f"valid_loss_epoch_{epoch}.txt"), valid_loss_array)
-        logging.info(f"loss={test_loss / len(val_loader):.4f}, mlm_loss={mlm_test_loss / len(val_loader):.4f}, nsp_loss={nsp_test_loss / len(val_loader):.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch}")
+        logging.info(f"loss={test_loss / len(val_loader):.4f}, mlm_loss={mlm_test_loss / len(val_loader):.4f}, nsp_loss={nsp_test_loss / len(val_loader):.4f}, acc={correct / total:.2%}, nsp_acc={nsp_correct / nsp_total:.2%} at epoch {epoch} in val")

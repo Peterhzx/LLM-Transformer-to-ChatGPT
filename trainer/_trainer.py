@@ -179,10 +179,10 @@ class Trainer(ABC):
         checkpoint = torch.load(last_ckpt, map_location=self.device)
         self.model.load_state_dict(checkpoint['model_state_dict'])
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
-        if self.scheduler:
-            self.scheduler.load_state_dict(checkpoint.get('scheduler_state_dict', self.scheduler.state_dict()))
         if self.scaler:
             self.scaler.load_state_dict(checkpoint.get('scaler_state_dict', self.scaler.state_dict()))
+        if self.scheduler:
+            self.scheduler.load_state_dict(checkpoint.get('scheduler_state_dict', self.scheduler.state_dict()))
         current_step = checkpoint.get('current_step', 0)
         current_epoch = checkpoint.get('current_epoch', 0)
         try:
@@ -228,6 +228,7 @@ class Trainer(ABC):
             self._train(epoch, current_step, train_loader, resume_acc_loss)
             self._val(epoch, val_loader)
             current_step = 0
+            resume_acc_loss = {}
 
     def save(self):
         file_dir = os.path.join(self.output_dir, "weights.pt")

@@ -74,7 +74,7 @@ class BERTDataset(Dataset):
 
         # create tgt seq
         tgt_tokenized = [isnext_token] + a_tokenized + [self.sep_token_id] + b_tokenized
-        target = tgt_tokenized[:self.max_len - 1]
+        target = tgt_tokenized[:self.max_len]
         target += [self.pad_token_id] * (self.max_len - len(target))
 
         # mask src
@@ -89,7 +89,7 @@ class BERTDataset(Dataset):
             else:
                 pred_list[i] += 1
 
-        src_tokenized = [isnext_token] + a_tokenized + [self.sep_token_id] + b_tokenized
+        src_tokenized = [self.cls_token_id] + a_tokenized + [self.sep_token_id] + b_tokenized
 
         mask_list = random.sample(pred_list, int(len(pred_list) * 0.9) if int(len(pred_list) * 0.9) > 0 else 1)
         for i in mask_list:
@@ -99,15 +99,16 @@ class BERTDataset(Dataset):
         for i in random_list:
             src_tokenized[i] = random.randint(self.random_token_start, self.random_token_end)
 
-        source = src_tokenized[:self.max_len - 1]
+        source = src_tokenized[:self.max_len]
         source += [self.pad_token_id] * (self.max_len - len(source))
 
-        pred_list = pred_list[:self.max_len - 1]
-        pred_list += [self.pad_token_id] * (self.max_len - len(pred_list))
+        mask = [False] * self.max_len
+        for i in pred_list:
+            mask[i] = True
 
         # to tensor
         src_tensor = torch.tensor(source, dtype=torch.long)
         tgt_tensor = torch.tensor(target, dtype=torch.long)
-        pred_tensor = torch.tensor(pred_list, dtype=torch.long)
+        mask_tensor = torch.tensor(mask, dtype=torch.long)
 
-        return src_tensor, tgt_tensor, pred_tensor
+        return src_tensor, tgt_tensor, mask_tensor
