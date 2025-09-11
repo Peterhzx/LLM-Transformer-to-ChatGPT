@@ -112,3 +112,17 @@ class BERTDataset(Dataset):
         mask_tensor = torch.tensor(mask, dtype=torch.long)
 
         return src_tensor, tgt_tensor, mask_tensor
+
+
+class ReadyToUseDataset(Dataset):
+    def __init__(self, df):
+        super(ReadyToUseDataset, self).__init__()
+        self.df = df
+        self.column_names = df.columns.tolist()
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        tensors = tuple(torch.tensor(self.df.at[idx, col], dtype=torch.long) for col in self.column_names)
+        return tensors
