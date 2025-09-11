@@ -73,10 +73,8 @@ class NLPModelPipeline:
         train_loader, val_loader, self.test_loader = self.data_container.get_dataloader(**self.params["Trainer"]["dataloader"])
         _trainer = getattr(tr, self.params["Trainer"]["type"])
         if self.tokenizer:
-            num_tokens = len(self.tokenizer)
-        else:
-            num_tokens = self.params["Trainer"]["num_tokens"]
-        self.trainer = _trainer(**self.params["Trainer"], num_tokens=num_tokens, mode=self.mode)
+            self.params["Trainer"]["num_tokens"] = len(self.tokenizer)
+        self.trainer = _trainer(**self.params["Trainer"], mode=self.mode)
         self.trainer.train(train_loader, val_loader)
         self.trainer.save()
 

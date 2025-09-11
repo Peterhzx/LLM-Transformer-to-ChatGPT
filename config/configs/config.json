@@ -1,6 +1,6 @@
 {
   "DataContainer": {
-    "data_file": "./data/en-fr_5M_len200.parquet"
+    "data_file": "./data/wiki_en.parquet"
   },
   "Trainer": {
     "type": "TransformerTrainer",
