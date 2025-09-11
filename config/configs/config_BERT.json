@@ -22,20 +22,18 @@
     "max_num_ckpt": 2,
     "enable_amp": true,
     "dataloader": {
-      "type": "get_bert_dataloader",
-      "params": {
-        "max_seq_len": 100,
-        "batch_size": 64,
-        "num_workers": 2,
-        "pin_memory": true,
-        "random_token_start": 5,
-        "random_token_end": 28211,
-        "pad_token_id": 0,
-        "mask_token_id": 1,
-        "cls_token_id": 2,
-        "sep_token_id": 3,
-        "train_val_test_split": [0.7, 0.15, 0.15]
-      }
+      "dataset_type": "BERTDataset",
+      "max_seq_len": 100,
+      "batch_size": 64,
+      "num_workers": 2,
+      "pin_memory": true,
+      "random_token_start": 5,
+      "random_token_end": 28211,
+      "pad_token_id": 0,
+      "mask_token_id": 1,
+      "cls_token_id": 2,
+      "sep_token_id": 3,
+      "train_val_test_split": [0.7, 0.15, 0.15]
     },
     "save_period": 500,
     "resume": {

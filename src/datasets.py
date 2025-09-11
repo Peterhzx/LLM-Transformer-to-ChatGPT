@@ -6,10 +6,10 @@ from torch.utils.data import Dataset
 
 
 class TransformerDataset(Dataset):
-    def __init__(self, df, max_len, pad_token_id=0, bos_token_id=1, eos_token_id=2):
+    def __init__(self, df, max_seq_len, pad_token_id=0, bos_token_id=1, eos_token_id=2):
         super(TransformerDataset, self).__init__()
         self.df = df
-        self.max_len = max_len
+        self.max_len = max_seq_len
         self.pad_token_id = pad_token_id
         self.bos_token_id = bos_token_id
         self.eos_token_id = eos_token_id
@@ -48,10 +48,10 @@ class TransformerDataset(Dataset):
 
 
 class BERTDataset(Dataset):
-    def __init__(self, df, max_len, random_token_start, random_token_end, pad_token_id=0, mask_token_id=1, cls_token_id=2, sep_token_id=3):
+    def __init__(self, df, max_seq_len, random_token_start, random_token_end, pad_token_id=0, mask_token_id=1, cls_token_id=2, sep_token_id=3):
         super(BERTDataset, self).__init__()
         self.df = df
-        self.max_len = max_len
+        self.max_len = max_seq_len
         self.random_token_start = random_token_start
         self.random_token_end = random_token_end
         self.pad_token_id = pad_token_id

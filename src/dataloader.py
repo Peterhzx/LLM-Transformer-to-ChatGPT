@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader, random_split
 from tqdm import tqdm
 
-from src.datasets import TransformerDataset, BERTDataset
+from src import datasets
 
 
 class Dataloader:
@@ -59,12 +59,21 @@ class Dataloader:
         self.df = self.df.loc[valid_indices].reset_index(drop=True)
 
     def save(self, path):
-        self.df.to_csv(path, index=False)
+        if path.endswith(".csv"):
+            self.df.to_csv(path, index=False)
+        elif path.endswith(".xlsx"):
+            self.df.to_excel(path, index=False)
+        elif path.endswith(".json"):
+            self.df.to_json(path, index=False, force_ascii=False, indent=4)
+        elif path.endswith(".parquet"):
+            self.df.to_parquet(path, engine='pyarrow')
+        else:
+            raise ValueError("file formate should be: .csv .xlsx .json .parquet")
 
     def get_df(self, sample_size=None, n=None):
         return self.df.sample(n=n, frac=sample_size)
 
-    def get_transformer_dataloader(self, max_seq_len, batch_size, num_workers=0, pin_memory=False, pad_token_id=0, bos_token_id=1, eos_token_id=2, seed=42, train_val_test_split=None):
+    def get_dataloader(self, dataset_type, batch_size, num_workers=0, pin_memory=False, seed=42, train_val_test_split=None, **kwargs):
         if train_val_test_split is None:
             train_val_test_split = [0.7, 0.15, 0.15]
 
@@ -72,25 +81,8 @@ class Dataloader:
         train_size = int(train_val_test_split[0] * dataset_size)
         val_size = int(train_val_test_split[1] * dataset_size)
 
-        dataset = TransformerDataset(self.df, max_seq_len, pad_token_id, bos_token_id, eos_token_id)
-
-        train_set, val_set, test_set = random_split(dataset, [train_size, val_size, dataset_size - train_size - val_size], generator=torch.Generator().manual_seed(seed))
-
-        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=pin_memory)
-        val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
-        test_loader = DataLoader(test_set, batch_size=batch_size, shuffle=False, num_workers=num_workers, pin_memory=pin_memory)
-
-        return train_loader, val_loader, test_loader
-
-    def get_bert_dataloader(self, max_seq_len, batch_size, random_token_start, random_token_end, num_workers=0, pin_memory=False, pad_token_id=0, mask_token_id=1, cls_token_id=2, sep_token_id=3, seed=42, train_val_test_split=None):
-        if train_val_test_split is None:
-            train_val_test_split = [0.7, 0.15, 0.15]
-
-        dataset_size = len(self.df)
-        train_size = int(train_val_test_split[0] * dataset_size)
-        val_size = int(train_val_test_split[1] * dataset_size)
-
-        dataset = BERTDataset(self.df, max_seq_len, random_token_start, random_token_end, pad_token_id, mask_token_id, cls_token_id, sep_token_id)
+        dataset_class = getattr(datasets, dataset_type)
+        dataset = dataset_class(self.df, **kwargs)
 
         train_set, val_set, test_set = random_split(dataset, [train_size, val_size, dataset_size - train_size - val_size], generator=torch.Generator().manual_seed(seed))
 

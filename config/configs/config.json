@@ -1,6 +1,6 @@
 {
   "Dataloader": {
-    "data_file": "./data/en-fr_tokenized.csv"
+    "data_file": "./data/en-fr_5M_len200.parquet"
   },
   "Trainer": {
     "type": "TransformerTrainer",
@@ -9,17 +9,12 @@
     "max_num_ckpt": 2,
     "enable_amp": true,
     "dataloader": {
-      "type": "get_transformer_dataloader",
-      "params": {
-        "max_seq_len": 100,
-        "batch_size": 64,
-        "num_workers": 4,
-        "pin_memory": true,
-        "train_val_test_split": [0.7, 0.15, 0.15],
-        "pad_token_id": 0,
-        "bos_token_id": 1,
-        "eos_token_id": 2
-      }
+      "dataset_type": "ReadyToUseDataset",
+      "batch_size": 64,
+      "num_workers": 4,
+      "pin_memory": true,
+      "train_val_test_split": [0.7, 0.15, 0.15],
+      "num_cols": 3
     },
     "save_period": 100,
     "resume": {

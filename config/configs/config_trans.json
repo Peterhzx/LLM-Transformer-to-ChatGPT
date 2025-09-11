@@ -27,17 +27,15 @@
       "value": true
     },
     "dataloader": {
-      "type": "get_transformer_dataloader",
-      "params": {
-        "max_seq_len": 100,
-        "batch_size": 64,
-        "num_workers": 4,
-        "pin_memory": true,
-        "train_val_test_split": [0.7, 0.15, 0.15],
-        "pad_token_id": 0,
-        "bos_token_id": 1,
-        "eos_token_id": 2
-      }
+      "dataset_type": "TransformerDataset",
+      "max_seq_len": 100,
+      "batch_size": 64,
+      "num_workers": 4,
+      "pin_memory": true,
+      "train_val_test_split": [0.7, 0.15, 0.15],
+      "pad_token_id": 0,
+      "bos_token_id": 1,
+      "eos_token_id": 2
     },
     "model": {
       "type": "Transformer",
