@@ -1,3 +1,4 @@
+import gc
 import os
 
 import pandas as pd
@@ -24,8 +25,10 @@ class DataContainer:
             self.df = pd.read_json(df_path, nrows=nrows)
         elif df_path.endswith(".parquet"):
             self.df = pd.read_parquet(df_path, engine='pyarrow')
+        elif df_path.endswith(".pkl"):
+            self.df = pd.read_pickle(df_path)
         else:
-            raise ValueError("file formate should be: .csv .xlsx .json .parquet")
+            raise ValueError("file formate should be: .csv .xlsx .json .parquet .pkl")
 
         if isinstance(allowed_chars, list):
             code_points = sorted(set(allowed_chars))
@@ -37,6 +40,7 @@ class DataContainer:
 
         if len(allowed_chars) != 0:
             self._clean_data()
+            gc.collect()
 
     def _clean_data(self):
         self.df = self.df.drop_duplicates().dropna().astype(str).reset_index(drop=True)
@@ -67,6 +71,8 @@ class DataContainer:
             self.df.to_json(path, index=False, force_ascii=False, indent=4)
         elif path.endswith(".parquet"):
             self.df.to_parquet(path, engine='pyarrow')
+        elif path.endswith(".pkl"):
+            self.df.to_pickle(path)
         else:
             raise ValueError("file formate should be: .csv .xlsx .json .parquet")
 

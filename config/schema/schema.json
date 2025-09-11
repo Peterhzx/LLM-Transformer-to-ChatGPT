@@ -81,7 +81,7 @@
       "properties": {
         "data_file": {
           "type": "string",
-          "pattern": "^(?:[a-zA-Z]:)?(?:[\\/]?(?:.{1,2}|[^\\/:*?\"<>|\n]+)(?:[\\/](?:.{1,2}|[^\\/:*?\"<>|\n]+))*)?[^\\/:*?\"<>|\n]+.(?:csv|xlsx|json|parquet)$",
+          "pattern": "^(?:[a-zA-Z]:)?(?:[\\/]?(?:.{1,2}|[^\\/:*?\"<>|\n]+)(?:[\\/](?:.{1,2}|[^\\/:*?\"<>|\n]+))*)?[^\\/:*?\"<>|\n]+.(?:csv|xlsx|json|parquet|pkl)$",
           "description": "Word level parser used for tokenizer training and tokenizing"
         },
         "allowed_chars": {
