@@ -61,8 +61,8 @@ class Dataloader:
     def save(self, path):
         self.df.to_csv(path, index=False)
 
-    def get_df(self, sample_size=0.1):
-        return self.df.sample(frac=sample_size)
+    def get_df(self, sample_size=None, n=None):
+        return self.df.sample(n=n, frac=sample_size)
 
     def get_transformer_dataloader(self, max_seq_len, batch_size, num_workers=0, pin_memory=False, pad_token_id=0, bos_token_id=1, eos_token_id=2, seed=42, train_val_test_split=None):
         if train_val_test_split is None:
