@@ -12,7 +12,7 @@
     "special_tokens": ["<PAD>", "<MASK>", "<CLS>", "<SEP>", "<UNK>"],
     "sample_size": 0.2
   },
-  "Dataloader": {
+  "DataContainer": {
     "data_file": "./data/test.parquet",
     "allowed_chars": ""
   },

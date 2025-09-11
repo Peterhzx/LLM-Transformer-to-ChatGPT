@@ -1,5 +1,5 @@
 {
-  "Dataloader": {
+  "DataContainer": {
     "data_file": "./data/en-fr_5M_len200.parquet"
   },
   "Trainer": {

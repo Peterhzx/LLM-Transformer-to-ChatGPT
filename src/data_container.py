@@ -8,7 +8,7 @@ from tqdm import tqdm
 from src import datasets
 
 
-class Dataloader:
+class DataContainer:
     def __init__(self, data_file, allowed_chars="", nrows=None, mode="local"):
         df_path = data_file
         if mode == "sagemaker":

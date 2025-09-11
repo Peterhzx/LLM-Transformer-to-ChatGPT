@@ -44,7 +44,7 @@ if args.host:
         print("Usage: python train.py <config_path>")
         sys.exit(1)
 config = load_config(sys.argv[1])
-dataloader = load_data(config["Dataloader"])
+dataloader = load_data(config["DataContainer"])
 tokenizer = train_tokenizer(dataloader, config["Tokenizer"])
 # save_tokenizer(tokenizer)
 tokenize_data(dataloader, tokenizer, config["Tokenizer"])

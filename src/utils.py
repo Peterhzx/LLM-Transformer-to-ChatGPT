@@ -6,7 +6,7 @@ import sys
 import jsonschema
 from jsonschema import validate
 
-from src.dataloader import Dataloader
+from src.data_container import DataContainer
 from src.evaluator import Evaluator
 import trainer as tr
 import tokenizer as tok
@@ -15,7 +15,7 @@ import tokenizer as tok
 class NLPModelPipeline:
     def __init__(self, config_path=r"./config/configs/config_trans.json", mode="local"):
         self.params = None
-        self.dataloader = None
+        self.data_container = None
         self.tokenizer = None
         self.trainer = None
         self.evaluator = None
@@ -37,8 +37,8 @@ class NLPModelPipeline:
             sys.exit(1)
 
     def _load_data(self):
-        print("Creating Dataloader...")
-        self.dataloader = Dataloader(**self.params["Dataloader"], mode=self.mode)
+        print("Creating DataContainer...")
+        self.data_container = DataContainer(**self.params["DataContainer"], mode=self.mode)
 
     def _prepare_tokenizer(self):
         print("Preparing tokenizer...")
@@ -55,7 +55,7 @@ class NLPModelPipeline:
         else:
             # Train new tokenizer
             sample_size = self.params["Tokenizer"].get("sample_size", 0.1)
-            data_df = self.dataloader.get_df(sample_size)
+            data_df = self.data_container.get_df(sample_size)
             self.tokenizer.train(data_df, **self.params["Tokenizer"])
             del data_df
             gc.collect()
@@ -66,11 +66,11 @@ class NLPModelPipeline:
 
     def _tokenize_data(self):
         print("Tokenizing data...")
-        self.tokenizer.tokenize(self.dataloader.df, **self.params["Tokenizer"])
+        self.tokenizer.tokenize(self.data_container.df, **self.params["Tokenizer"])
 
     def _train_and_save_model(self):
         print("Training model...")
-        train_loader, val_loader, self.test_loader = self.dataloader.get_dataloader(**self.params["Trainer"]["dataloader"])
+        train_loader, val_loader, self.test_loader = self.data_container.get_dataloader(**self.params["Trainer"]["dataloader"])
         _trainer = getattr(tr, self.params["Trainer"]["type"])
         if self.tokenizer:
             num_tokens = len(self.tokenizer)
