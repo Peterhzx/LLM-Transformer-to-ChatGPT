@@ -11,14 +11,13 @@
     "dataloader": {
       "dataset_type": "ReadyToUseDataset",
       "batch_size": 64,
-      "num_workers": 4,
+      "num_workers": 2,
       "pin_memory": true,
-      "train_val_test_split": [0.7, 0.15, 0.15],
-      "num_cols": 3
+      "train_val_test_split": [0.7, 0.15, 0.15]
     },
-    "save_period": 100,
+    "save_period": 1000,
     "resume": {
-      "value": true
+      "value": false
     },
     "model": {
       "type": "Transformer",
