@@ -16,7 +16,11 @@ class BERT(nn.Module):
         self.embeddings = nn.Embedding(num_tokens, embed_dim, padding_idx=pad_token_id)
         self.dropout = nn.Dropout(dropout)
         self.encoder = nn.ModuleList([EncoderLayer(num_heads, embed_dim, feedforward_dim, dropout) for _ in range(num_layers)])
-        self.nsp_linear = nn.Linear(embed_dim, 2)
+        self.nsp_linear_1 = nn.Linear(embed_dim, embed_dim)
+        self.nsp_dropout1 = nn.Dropout(dropout)
+        self.nsp_linear_2 = nn.Linear(embed_dim, 2)
+        self.nsp_dropout2 = nn.Dropout(dropout)
+        self.nsp_norm = LayerNorm(2)
 
     def forward(self, x, key_padding_mask=None):
         if key_padding_mask is None:
@@ -30,7 +34,12 @@ class BERT(nn.Module):
         for i, layer in enumerate(self.encoder):
             enc_output = layer(enc_output, key_padding_mask)
         nsp_out = enc_output[:, 0, :]
-        nsp_out = self.nsp_linear(nsp_out)
+        nsp_out = self.nsp_linear_1(nsp_out)
+        nsp_out = F.gelu(nsp_out)
+        nsp_out = self.nsp_dropout1(nsp_out)
+        nsp_out = self.nsp_linear_2(nsp_out)
+        nsp_out = self.nsp_dropout2(nsp_out)
+        nsp_out = self.nsp_norm(nsp_out)
         out = enc_output @ self.embeddings.weight.T  # [batch_size, seq_len, num_emb]
         return out, nsp_out
 
