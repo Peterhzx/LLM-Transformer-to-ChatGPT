@@ -12,23 +12,20 @@ from trainer import Trainer
 
 
 class TransformerTrainer(Trainer):
-    def __init__(self, hyperparams, num_tokens, mode):
+    def __init__(self, num_epoch, save_period, resume, model, optimizer, criterion, num_tokens, mode, max_num_ckpt=-1, enable_amp=True, lr_scheduler=None, **kwargs):
         super(TransformerTrainer, self).__init__()
-        self.pad_token_id = hyperparams["model"]["params"]["pad_token_id"]
-        self.num_epoch = hyperparams["num_epoch"]
-        self.save_period = hyperparams["save_period"]["value"]
-        self.max_num_ckpt = hyperparams.get("max_num_ckpt", -1)
-        self.enable_amp = hyperparams.get("enable_amp", True)
+        self.pad_token_id = model["params"]["pad_token_id"]
+        self.num_epoch = num_epoch
+        self.save_period = save_period
+        self.max_num_ckpt = max_num_ckpt
+        self.enable_amp = enable_amp
         self.mode = mode
-        self._init_dir(hyperparams, mode)
+        self._init_dir(resume, model, mode)
         self.cuda_availability = self._check_cuda_availability()
-        self._init_model(hyperparams["model"], num_tokens)
-        self._init_optimizer(hyperparams["optimizer"])
-        if "lr_scheduler" in hyperparams:
-            self._init_lr_scheduler(hyperparams["lr_scheduler"])
-        else:
-            self.scheduler = None
-        self._init_criterion(hyperparams["criterion"])
+        self._init_model(model, num_tokens)
+        self._init_optimizer(optimizer)
+        self._init_lr_scheduler(lr_scheduler)
+        self._init_criterion(criterion)
         self.scaler = amp.GradScaler("cuda", enabled=self.enable_amp) if self.cuda_availability else None
 
     def _save_acc_loss(self, train_loss, correct, total):
@@ -143,9 +140,9 @@ class TransformerTrainer(Trainer):
                 src, decoder_input, targets = src.to(self.device), decoder_input.to(self.device), targets.to(self.device)
                 with amp.autocast("cuda", enabled=self.enable_amp and self.cuda_availability):
                     outputs = self.model(src, decoder_input)
-                outputs = outputs.view(-1, outputs.size(-1))
-                targets = targets.view(-1)
-                loss = self.criterion(outputs, targets)
+                    outputs = outputs.view(-1, outputs.size(-1))
+                    targets = targets.view(-1)
+                    loss = self.criterion(outputs, targets)
                 test_loss += loss.item()
                 predicted = outputs.argmax(dim=-1)
                 mask = (targets != self.pad_token_id)

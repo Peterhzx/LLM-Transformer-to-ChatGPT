@@ -13,24 +13,20 @@ from trainer import Trainer
 
 
 class BERTTrainer(Trainer):
-    def __init__(self, hyperparams, num_tokens, mode):
+    def __init__(self, num_epoch, save_period, resume, model, optimizer, lr_scheduler, criterion, num_tokens, mode, max_num_ckpt=-1, enable_amp=True, **kwargs):
         super(BERTTrainer, self).__init__()
-        self.pad_token_id = hyperparams["model"]["params"]["pad_token_id"]
-        self.num_epoch = hyperparams["num_epoch"]
-        self.save_period = hyperparams["save_period"]["value"]
-        self.batch_size = hyperparams["dataloader"]["params"]["batch_size"]
-        self.max_num_ckpt = hyperparams.get("max_num_ckpt", -1)
-        self.enable_amp = hyperparams.get("enable_amp", True)
+        self.pad_token_id = model["params"]["pad_token_id"]
+        self.num_epoch = num_epoch
+        self.save_period = save_period
+        self.max_num_ckpt = max_num_ckpt
+        self.enable_amp = enable_amp
         self.mode = mode
-        self._init_dir(hyperparams, mode)
+        self._init_dir(resume, model, mode)
         self.cuda_availability = self._check_cuda_availability()
-        self._init_model(hyperparams["model"], num_tokens)
-        self._init_optimizer(hyperparams["optimizer"])
-        if "lr_scheduler" in hyperparams:
-            self._init_lr_scheduler(hyperparams["lr_scheduler"])
-        else:
-            self.scheduler = None
-        self._init_criterion(hyperparams["criterion"])
+        self._init_model(model, num_tokens)
+        self._init_optimizer(optimizer)
+        self._init_lr_scheduler(lr_scheduler)
+        self._init_criterion(criterion)
         self.criterion_nsp = nn.CrossEntropyLoss()
         self.scaler = amp.GradScaler("cuda", enabled=self.enable_amp) if self.cuda_availability else None
 

@@ -21,12 +21,7 @@ class WordPiece(Tokenizer):
         self.byte_pair_location = {}  # {"an": {"anchor": [0], "banana": [1, 3]}}
         # self.token_ranks = {}  # {"word": int(priority)}
 
-    def train(self, df, config, *args, **kwargs):
-        vocab_size = config["vocab_size"]
-        src_tokenizer_regex = config["src_tokenizer_regex"]
-        tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
-        all_chars = config["all_chars"]
-        special_tokens = config.get("special_tokens", [])
+    def train(self, df, vocab_size, src_tokenizer_regex, tgt_tokenizer_regex, all_chars, special_tokens, **kwargs):
         print("Preprocessing data for training tokenizer")
         time.sleep(0.5)
         self._preprocess(df, src_tokenizer_regex, tgt_tokenizer_regex, all_chars)
@@ -37,9 +32,7 @@ class WordPiece(Tokenizer):
         print("Postprocessing")
         self._postprocess(special_tokens)
 
-    def tokenize(self, df, config, **kwargs):
-        src_tokenizer_regex = config["src_tokenizer_regex"]
-        tgt_tokenizer_regex = config["tgt_tokenizer_regex"]
+    def tokenize(self, df, src_tokenizer_regex, tgt_tokenizer_regex, **kwargs):
         print(f"Tokenizing DataFrame using {self._vocab_fingerprint(self.tokens)} vocab")
         time.sleep(0.5)
         self._df_splitting(df, False, src_tokenizer_regex, tgt_tokenizer_regex)

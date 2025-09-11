@@ -13,11 +13,11 @@ class Tokenizer(ABC):
         self.tokens = None
 
     @abstractmethod
-    def train(self, data, config, *args, **kwargs):
+    def train(self, df, vocab_size, src_tokenizer_regex, tgt_tokenizer_regex, all_chars, special_tokens, *args, **kwargs):
         pass
 
     @abstractmethod
-    def tokenize(self, data, config, *args, **kwargs):
+    def tokenize(self, df, src_tokenizer_regex, tgt_tokenizer_regex, *args, **kwargs):
         pass
 
     @staticmethod

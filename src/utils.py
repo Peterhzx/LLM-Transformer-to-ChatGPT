@@ -38,7 +38,7 @@ class NLPModelPipeline:
 
     def _load_data(self):
         print("Creating Dataloader...")
-        self.dataloader = Dataloader(self.params["Dataloader"], self.mode)
+        self.dataloader = Dataloader(**self.params["Dataloader"], mode=self.mode)
 
     def _prepare_tokenizer(self):
         print("Preparing tokenizer...")
@@ -56,7 +56,7 @@ class NLPModelPipeline:
             # Train new tokenizer
             sample_size = self.params["Tokenizer"].get("sample_size", 0.1)
             data_df = self.dataloader.get_df(sample_size)
-            self.tokenizer.train(data_df, self.params["Tokenizer"])
+            self.tokenizer.train(data_df, **self.params["Tokenizer"])
             del data_df
             gc.collect()
 
@@ -66,7 +66,7 @@ class NLPModelPipeline:
 
     def _tokenize_data(self):
         print("Tokenizing data...")
-        self.tokenizer.tokenize(self.dataloader.df, self.params["Tokenizer"])
+        self.tokenizer.tokenize(self.dataloader.df, **self.params["Tokenizer"])
 
     def _train_and_save_model(self):
         print("Training model...")
@@ -77,7 +77,7 @@ class NLPModelPipeline:
             num_tokens = len(self.tokenizer)
         else:
             num_tokens = self.params["Trainer"]["num_tokens"]
-        self.trainer = _trainer(self.params["Trainer"], num_tokens, self.mode)
+        self.trainer = _trainer(**self.params["Trainer"], num_tokens=num_tokens, mode=self.mode)
         self.trainer.train(train_loader, val_loader)
         self.trainer.save()
 
@@ -92,11 +92,11 @@ class NLPModelPipeline:
             self._prepare_tokenizer()
             self._tokenize_data()
             self._train_and_save_model()
-            self._eval_model()
+            # self._eval_model()
         else:
             print("Training without tokenizer")
             self._train_and_save_model()
-            self._eval_model()
+            # self._eval_model()
 
         """
         self._load_data()

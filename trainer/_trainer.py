@@ -21,17 +21,17 @@ class Trainer(ABC):
         self.num_epoch = None
         self.save_period = None
 
-    def _init_dir(self, hyperparams, mode):
+    def _init_dir(self, resume, model, mode):
         if mode == "sagemaker":
             ckpt_parent = "/opt/ml/checkpoints"
             output_parent = os.environ.get('SM_OUTPUT_DIR', "/opt/ml/output/data")
             try:
-                if hyperparams["resume"]["value"]:
-                    if "ckpt_dir" in hyperparams["resume"]:
-                        self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
-                        self.output_dir = hyperparams["resume"].get("output_dir", self.ckpt_dir)
+                if resume["value"]:
+                    if "ckpt_dir" in resume:
+                        self.ckpt_dir = resume["ckpt_dir"]
+                        self.output_dir = resume.get("output_dir", self.ckpt_dir)
                     else:
-                        model_type = hyperparams["model"]["type"].lower()
+                        model_type = model["type"].lower()
                         ckpt_base_dir = Path(ckpt_parent) / model_type
                         output_base_dir = Path(output_parent) / model_type
 
@@ -58,11 +58,11 @@ class Trainer(ABC):
                         output_dirs.sort(key=os.path.getmtime)
                         self.output_dir = str(output_dirs[-1])
                 else:
-                    self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
-                    self.output_dir = hyperparams["resume"].get("output_dir", self.ckpt_dir)
+                    self.ckpt_dir = resume["ckpt_dir"]
+                    self.output_dir = resume.get("output_dir", self.ckpt_dir)
             except KeyError:
                 now = "_".join([str(item) for item in time.localtime()[:6]])
-                model_type = hyperparams["model"]["type"].lower()
+                model_type = model["type"].lower()
                 self.ckpt_dir = os.path.join(ckpt_parent, model_type, now)
                 self.output_dir = os.path.join(output_parent, model_type, now)
                 os.makedirs(self.ckpt_dir, exist_ok=True)
@@ -70,12 +70,12 @@ class Trainer(ABC):
         elif mode == "local":
             ckpt_parent = "./checkpoints"
             try:
-                if hyperparams["resume"]["value"]:
-                    if "ckpt_dir" in hyperparams["resume"]:
-                        self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
+                if resume["value"]:
+                    if "ckpt_dir" in resume:
+                        self.ckpt_dir = resume["ckpt_dir"]
                         self.output_dir = self.ckpt_dir
                     else:
-                        model_type = hyperparams["model"]["type"].lower()
+                        model_type = model["type"].lower()
                         ckpt_base_dir = Path(ckpt_parent) / model_type
 
                         # Check if base directory exists
@@ -93,11 +93,11 @@ class Trainer(ABC):
                         self.ckpt_dir = str(ckpt_dirs[-1])
                         self.output_dir = self.ckpt_dir
                 else:
-                    self.ckpt_dir = hyperparams["resume"]["ckpt_dir"]
+                    self.ckpt_dir = resume["ckpt_dir"]
                     self.output_dir = self.ckpt_dir
             except KeyError:
                 now = "_".join([str(item) for item in time.localtime()[:6]])
-                model_type = hyperparams["model"]["type"].lower()
+                model_type = model["type"].lower()
                 self.ckpt_dir = os.path.join(ckpt_parent, model_type, now)
                 os.makedirs(self.ckpt_dir, exist_ok=True)
                 self.output_dir = self.ckpt_dir
@@ -129,18 +129,21 @@ class Trainer(ABC):
             self.optimizer = optim(self.model.parameters(), **hyperparams["params"])
 
     def _init_lr_scheduler(self, hyperparams):
-        lr_sch = getattr(torch.optim.lr_scheduler, hyperparams["type"])
-        if hyperparams["type"] == "LambdaLR":
-            if hyperparams["lambda"]["type"] == "Transformer_lambda":
-                embed_dim = hyperparams["lambda"]["params"]["embed_dim"]
-                warmup_steps = hyperparams["lambda"]["params"]["warmup_steps"]
-                lambda_lr = lambda step: embed_dim ** -0.5 * min((step + 1) ** -0.5, (step + 1) * warmup_steps ** -1.5)
-                self.scheduler = lr_sch(self.optimizer, lr_lambda=lambda_lr)
+        if hyperparams:
+            lr_sch = getattr(torch.optim.lr_scheduler, hyperparams["type"])
+            if hyperparams["type"] == "LambdaLR":
+                if hyperparams["lambda"]["type"] == "Transformer_lambda":
+                    embed_dim = hyperparams["lambda"]["params"]["embed_dim"]
+                    warmup_steps = hyperparams["lambda"]["params"]["warmup_steps"]
+                    lambda_lr = lambda step: embed_dim ** -0.5 * min((step + 1) ** -0.5, (step + 1) * warmup_steps ** -1.5)
+                    self.scheduler = lr_sch(self.optimizer, lr_lambda=lambda_lr)
+                else:
+                    logging.error("Invalid lambda type")
+                    raise ValueError("Invalid lambda type")
             else:
-                logging.error("Invalid lambda type")
-                raise ValueError("Invalid lambda type")
+                self.scheduler = lr_sch(self.optimizer, **hyperparams["param"])
         else:
-            self.scheduler = lr_sch(self.optimizer, **hyperparams["param"])
+            self.scheduler = None
 
     def _init_criterion(self, hyperparams):
         crit = getattr(nn, hyperparams["type"])

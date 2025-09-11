@@ -9,13 +9,11 @@ from src.datasets import TransformerDataset, BERTDataset
 
 
 class Dataloader:
-    def __init__(self, config, mode="local"):
-        df_path = config["data_file"]
+    def __init__(self, data_file, allowed_chars="", nrows=None, mode="local"):
+        df_path = data_file
         if mode == "sagemaker":
             parent = os.environ.get('SM_CHANNEL_TRAIN', "/opt/ml/input/data/train")
             df_path = os.path.join(parent, df_path)
-        allowed_chars = config.get("allowed_chars", "")
-        nrows = config.get("nrows", None)
 
         print(f"Loading data: {df_path}")
         if df_path.endswith(".csv"):
